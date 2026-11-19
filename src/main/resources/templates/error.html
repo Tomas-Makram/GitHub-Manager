@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.language}"
+      th:dir="${#locale.language == 'ar' ? 'rtl' : 'ltr'}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="#{${titleKey}}">خطأ</title>
+
+    <link rel="icon" type="image/png" id="dynamic-favicon" th:href="@{/favicon_light.png?v=1}">
+
+    <style>
+        :root {
+            --bg-color: #f6f8fa; --text-color: #24292e; --nav-bg: #ffffff;
+            --card-bg: #ffffff; --card-border: #e1e4e8; --text-muted: #586069;
+            --btn-primary: #2ea44f; --btn-primary-hover: #2c974b; --btn-danger: #d73a49;
+            --btn-outline-border: #d1d5da; --btn-outline-hover: #f3f4f6;
+        }
+        [data-theme="dark"] {
+            --bg-color: #0d1117; --text-color: #c9d1d9; --nav-bg: #161b22;
+            --card-bg: #161b22; --card-border: #30363d; --text-muted: #8b949e;
+            --btn-primary: #238636; --btn-primary-hover: #2ea043; --btn-danger: #da3633;
+            --btn-outline-border: #30363d; --btn-outline-hover: #21262d;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color); color: var(--text-color);
+            margin: 0; padding: 0; transition: background-color 0.3s, color 0.3s;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+
+        .navbar { display: flex; justify-content: space-between; align-items: center; background-color: var(--nav-bg); padding: 10px 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom: 1px solid var(--card-border); }
+        .navbar-brand { font-size: 1.5em; font-weight: bold; color: var(--text-color); display: flex; align-items: center; gap: 10px; }
+        .navbar-logo { height: 32px; width: 32px; border-radius: 5px; transition: 0.3s; }
+        .nav-links { display: flex; gap: 15px; align-items: center; }
+
+        .btn { padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; font-size: 0.9em; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s; }
+        .btn-primary { background-color: var(--btn-primary); color: white; }
+        .btn-primary:hover { background-color: var(--btn-primary-hover); }
+        .btn-outline { border: 1px solid var(--btn-outline-border); color: var(--text-color); background: transparent; }
+        .btn-outline:hover { background: var(--btn-outline-hover); }
+
+        .main-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .error-card {
+            background: var(--card-bg); padding: 50px 40px; border-radius: 12px;
+            border: 1px solid var(--card-border); box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center; max-width: 500px; width: 100%;
+            animation: slideUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .error-code { font-size: 4.5em; font-weight: bold; color: var(--btn-danger); margin: 0; line-height: 1; }
+        .error-card h2 { margin: 15px 0; font-size: 1.8em; }
+        .error-card p { color: var(--text-muted); margin-bottom: 20px; font-size: 1.1em; line-height: 1.5; }
+        .countdown { font-size: 0.95em; margin-bottom: 25px !important; }
+        .home-btn { padding: 12px 30px; font-size: 1.1em; border-radius: 8px; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+    <script>
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+    </script>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">
+        <img th:src="@{/favicon_light.png?v=1}" alt="Logo" class="navbar-logo" id="navbar-logo">
+        <span>GitHub Manager</span>
+    </div>
+    <div class="nav-links">
+        <button type="button" onclick="toggleTheme()" class="btn btn-outline" id="themeBtn"><span id="themeIcon">🌙</span></button>
+    </div>
+</nav>
+
+<div class="main-content">
+    <div class="error-card">
+        <p class="error-code" th:text="${status}">404</p>
+        <h2 th:text="#{${titleKey}}">الصفحة غير موجودة</h2>
+        <p th:text="#{${messageKey}}">الصفحة اللي بتحاول تفتحها غير موجودة.</p>
+
+        <p class="countdown">
+            <span th:text="#{error.page.redirecting}">سيتم تحويلك خلال</span>
+            <strong id="counter" th:text="${redirectSeconds}">5</strong>
+            <span th:text="#{error.page.seconds}">ثواني</span>
+        </p>
+
+        <a th:href="@{${redirectUrl}}" class="btn btn-primary home-btn" th:text="#{error.page.home}">العودة للرئيسية</a>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    function updateAssets(theme) {
+        const favicon = document.getElementById('dynamic-favicon');
+        const navbarLogo = document.getElementById('navbar-logo');
+        const themeIcon = document.getElementById('themeIcon');
+
+        if (theme === 'dark') {
+            if (favicon) favicon.href = /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1';
+            if (navbarLogo) navbarLogo.src = /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1';
+            if (themeIcon) themeIcon.innerText = '☀️';
+        } else {
+            if (favicon) favicon.href = /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+            if (navbarLogo) navbarLogo.src = /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+            if (themeIcon) themeIcon.innerText = '🌙';
+        }
+    }
+
+    function toggleTheme() {
+        const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateAssets(newTheme);
+    }
+
+    updateAssets(document.documentElement.getAttribute('data-theme'));
+
+    // العد التنازلي ثم التحويل
+    let remaining = /*[[${redirectSeconds}]]*/ 5;
+    const target = /*[[@{${redirectUrl}}]]*/ '/';
+    const counter = document.getElementById('counter');
+
+    const timer = setInterval(() => {
+        remaining--;
+        if (counter) counter.innerText = remaining;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            window.location.replace(target);
+        }
+    }, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,1685 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.language}"
+      th:dir="${#locale.language == 'ar' ? 'rtl' : 'ltr'}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|#{repo.details_title} - ${repo.name}|">Repository Details</title>
+
+    <link rel="icon" type="image/png" id="dynamic-favicon" th:href="@{/favicon_light.png?v=1}">
+
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/toast.css}">
+
+    <style>
+        :root {
+            --bg-color: #f6f8fa; --text-color: #1f2328; --nav-bg: rgba(255,255,255,0.85);
+            --card-bg: #ffffff; --card-border: #d8dee4; --text-muted: #59636e;
+            --btn-primary: #1f883d; --btn-primary-hover: #1a7f37; --btn-danger: #cf222e;
+            --btn-danger-hover: #a40e26; --btn-outline-border: #d1d9e0; --btn-outline-hover: #eef1f4;
+            --link-color: #0969da; --input-bg: #ffffff; --input-border: #d1d9e0;
+            --shadow: 0 1px 3px rgba(31,35,40,0.06), 0 8px 24px rgba(66,74,83,0.06);
+            --danger-bg: #fff5f5; --warn-bg: #fff8c5; --warn-border: #d4a72c; --warn-text: #7d4e00;
+            --radius: 12px;
+        }
+        [data-theme="dark"] {
+            --bg-color: #0d1117; --text-color: #e6edf3; --nav-bg: rgba(22,27,34,0.85);
+            --card-bg: #161b22; --card-border: #30363d; --text-muted: #9198a1;
+            --btn-primary: #238636; --btn-primary-hover: #2ea043; --btn-danger: #da3633;
+            --btn-danger-hover: #f85149; --btn-outline-border: #3d444d; --btn-outline-hover: #21262d;
+            --link-color: #58a6ff; --input-bg: #0d1117; --input-border: #3d444d;
+            --shadow: 0 0 0 rgba(0,0,0,0), 0 8px 24px rgba(1,4,9,0.4);
+            --danger-bg: #1c1214; --warn-bg: #272115; --warn-border: #9e6a03; --warn-text: #e3b341;
+        }
+
+        * { box-sizing: border-box; }
+        .hidden { display: none !important; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color); color: var(--text-color);
+            margin: 0; transition: background-color 0.3s, color 0.3s; line-height: 1.5;
+        }
+
+        /* ===== Navbar ===== */
+        .navbar { position: sticky; top: 0; z-index: 50; background: var(--nav-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--card-border); }
+        .navbar-inner { max-width: 1100px; margin: 0 auto; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .navbar-brand { font-size: 1.25em; font-weight: 700; color: var(--text-color); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+        .navbar-logo { height: 32px; width: 32px; border-radius: 8px; }
+        .nav-links { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        [dir="rtl"] .arrow { display: inline-block; transform: scaleX(-1); }
+
+        /* ===== Buttons ===== */
+        .btn { padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; cursor: pointer; border: 1px solid transparent; font-size: 0.9em; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background-color: var(--btn-primary); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--btn-primary-hover); }
+        .btn-danger { background-color: var(--btn-danger); color: #fff; }
+        .btn-danger:hover:not(:disabled) { background-color: var(--btn-danger-hover); }
+        .btn-outline { border-color: var(--btn-outline-border); color: var(--text-color); background: transparent; }
+        .btn-outline:hover:not(:disabled) { background: var(--btn-outline-hover); }
+        .btn-sm { padding: 5px 10px; font-size: 0.8em; }
+        .btn-block { width: 100%; }
+
+        /* ===== Layout ===== */
+        .container { max-width: 1100px; margin: 0 auto; padding: 28px 20px 70px; }
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow); }
+        .error-alert { background: var(--danger-bg); color: var(--btn-danger); border: 1px solid var(--btn-danger); padding: 14px 16px; border-radius: 10px; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+
+        /* ===== Repo header ===== */
+        .repo-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+        .repo-info { flex: 1; min-width: 260px; }
+        .repo-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 6px; font-size: 1.7em; word-break: break-word; }
+        .badge { font-size: 0.45em; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--card-border); color: var(--text-muted); font-weight: 600; }
+        .repo-desc { margin: 0; color: var(--text-muted); }
+        .desc-view { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .desc-edit { margin-top: 10px; padding: 12px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--input-bg); }
+        .repo-meta { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; font-size: 0.85em; color: var(--text-muted); }
+        .repo-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        /* ===== Stats ===== */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 20px 0 10px; }
+        .stat-card { padding: 16px 18px; display: flex; align-items: center; gap: 14px; }
+        .stat-icon { font-size: 1.6em; width: 46px; height: 46px; border-radius: 12px; background: var(--bg-color); display: grid; place-items: center; }
+        .stat-value { display: block; font-size: 1.5em; font-weight: 700; line-height: 1.1; }
+        .stat-label { font-size: 0.82em; color: var(--text-muted); }
+
+        /* ===== Sections ===== */
+        .section-title { display: flex; align-items: center; gap: 10px; margin: 38px 0 14px; font-size: 1.2em; }
+        .count-pill { font-size: 0.7em; background: var(--btn-outline-hover); border: 1px solid var(--card-border); padding: 1px 10px; border-radius: 999px; color: var(--text-muted); }
+
+        .issue-list { list-style: none; padding: 0; margin: 0; overflow: hidden; }
+        .issue-item { padding: 13px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--card-border); }
+        .issue-item:last-child { border-bottom: none; }
+        .issue-item a { font-weight: 600; color: var(--text-color); text-decoration: none; }
+        .issue-item a:hover { color: var(--link-color); }
+        .issue-number { margin-inline-start: auto; color: var(--text-muted); direction: ltr; }
+        .empty-state { text-align: center; color: var(--text-muted); padding: 34px 20px; }
+
+        /* ===== Branches ===== */
+        .branches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+        .branch-card { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .branch-name { font-weight: 700; display: flex; align-items: center; gap: 8px; word-break: break-all; }
+        .branch-forms { display: flex; flex-direction: column; gap: 8px; }
+        .inline-form { display: flex; gap: 6px; margin: 0; }
+        .inline-form .form-control { padding: 6px 10px; font-size: 0.85em; }
+
+        .create-branch-card { margin-top: 14px; padding: 18px 20px; }
+        .create-branch-card h4 { margin: 0 0 12px; font-size: 1.02em; }
+        .create-branch-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0; }
+        .create-branch-form .form-control { flex: 1; min-width: 220px; }
+        @media (max-width: 640px) { .create-branch-form .btn { width: 100%; } }
+
+        /* ===== Tools ===== */
+        .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+        .tool-card { padding: 22px; }
+        .tool-card.wide { grid-column: 1 / -1; }
+        .tool-card h4 { margin: 0 0 16px; font-size: 1.05em; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 0.88em; font-weight: 600; }
+        .form-control { width: 100%; padding: 9px 12px; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); border-radius: 8px; font-family: inherit; font-size: 0.95em; }
+        .form-control:focus { outline: none; border-color: var(--link-color); box-shadow: 0 0 0 3px rgba(9,105,218,0.25); }
+        .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .pick-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .danger-card { border-color: var(--btn-danger); background: var(--danger-bg); }
+        .danger-card h4 { color: var(--btn-danger); }
+        .danger-card p { color: var(--text-muted); font-size: 0.9em; margin: 0 0 16px; }
+
+        /* ===== Tree ===== */
+        .tree-container { max-height: 280px; overflow: auto; border: 1px solid var(--input-border); background: var(--input-bg); padding: 8px; border-radius: 8px; margin-bottom: 8px; font-family: Consolas, monospace; font-size: 0.88em; }
+        .tree-list { list-style: none; margin: 0; padding: 0; }
+        .tree-list .tree-list { padding-inline-start: 22px; }
+        .tree-item { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; }
+        .tree-item:hover { background: var(--btn-outline-hover); }
+        .tree-toggle { width: 20px; text-align: center; cursor: pointer; user-select: none; }
+        .tree-name.dir { font-weight: 700; }
+        .tree-size { color: var(--text-muted); font-size: 0.85em; margin-inline-start: auto; direction: ltr; }
+        .tree-empty { color: var(--text-muted); text-align: center; padding: 14px; }
+        .selection-summary { font-size: 0.85em; color: var(--text-muted); margin-bottom: 10px; min-height: 1.2em; }
+        .check-line { display: flex; align-items: center; gap: 8px; font-size: 0.88em; margin-bottom: 14px; cursor: pointer; }
+
+        .warning-box { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text); padding: 10px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; cursor: pointer; font-weight: 600; font-size: 0.9em; }
+        .warning-box input { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+
+        .progress-wrap { margin-top: 14px; }
+        .progress-head { display: flex; justify-content: space-between; font-size: 0.82em; margin-bottom: 6px; }
+        .progress-track { width: 100%; background: var(--card-border); border-radius: 999px; overflow: hidden; height: 10px; }
+        .progress-bar { width: 0; height: 100%; background: var(--btn-primary); transition: width 0.2s; }
+        .progress-files { text-align: center; font-size: 0.82em; margin-top: 6px; color: var(--text-muted); }
+        .plan-summary { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--bg-color); border: 1px solid var(--card-border); font-size: 0.85em; }
+
+        /* ===== Dialogs ===== */
+        dialog { border: 1px solid var(--card-border); border-radius: var(--radius); background: var(--card-bg); color: var(--text-color); padding: 0; width: calc(100% - 32px); max-width: 580px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+        dialog::backdrop { background: rgba(1,4,9,0.6); }
+        .dialog-body { padding: 22px; }
+        .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+        .confirm-code { background: var(--btn-outline-hover); padding: 2px 8px; border-radius: 6px; font-family: Consolas, monospace; user-select: all; }
+        .secrets-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 260px; overflow: auto; border: 1px solid var(--card-border); border-radius: 8px; }
+        .secrets-list > li { padding: 10px 12px; border-bottom: 1px solid var(--card-border); font-size: 0.88em; }
+        .secrets-list > li:last-child { border-bottom: none; }
+        .secrets-list ul { margin: 6px 0 0; padding-inline-start: 18px; color: var(--text-muted); }
+        .secrets-list code { font-family: Consolas, monospace; background: var(--btn-outline-hover); padding: 1px 6px; border-radius: 4px; direction: ltr; unicode-bidi: embed; }
+        .secrets-public { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--danger-bg); border: 1px solid var(--btn-danger); color: var(--btn-danger); font-weight: 600; font-size: 0.88em; }
+
+        /* ===== README (markdown) ===== */
+        .markdown-body { padding: 24px 28px; line-height: 1.65; word-wrap: break-word; overflow-x: auto; font-size: 0.97em; }
+        .markdown-body > :first-child { margin-top: 0 !important; }
+        .markdown-body > :last-child { margin-bottom: 0 !important; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: 1.4em 0 0.7em; font-weight: 700; line-height: 1.25; }
+        .markdown-body h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid var(--card-border); }
+        .markdown-body h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--card-border); }
+        .markdown-body h3 { font-size: 1.25em; }
+        .markdown-body h4 { font-size: 1em; }
+        .markdown-body .markdown-heading { margin: 0; }
+        .markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body blockquote, .markdown-body pre, .markdown-body table, .markdown-body details, .markdown-body .highlight { margin: 0 0 16px; }
+        .markdown-body ul, .markdown-body ol { padding-inline-start: 2em; }
+        .markdown-body li + li { margin-top: 0.25em; }
+        .markdown-body a { color: var(--link-color); text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        .markdown-body img { max-width: 100%; height: auto; }
+        .markdown-body code, .markdown-body tt { font-family: Consolas, 'Courier New', monospace; font-size: 85%; background: var(--btn-outline-hover); padding: 0.2em 0.4em; border-radius: 6px; direction: ltr; unicode-bidi: embed; }
+        .markdown-body pre { background: var(--input-bg); border: 1px solid var(--card-border); padding: 16px; overflow: auto; border-radius: 8px; direction: ltr; text-align: left; line-height: 1.45; }
+        .markdown-body pre code { background: none; padding: 0; font-size: 90%; }
+        .markdown-body blockquote { margin-inline: 0; padding: 0 1em; color: var(--text-muted); border-inline-start: 0.25em solid var(--card-border); }
+        .markdown-body table { border-collapse: collapse; display: block; width: max-content; max-width: 100%; overflow: auto; }
+        .markdown-body th, .markdown-body td { border: 1px solid var(--card-border); padding: 6px 13px; }
+        .markdown-body tr:nth-child(2n) { background: var(--bg-color); }
+        .markdown-body hr { border: 0; border-top: 1px solid var(--card-border); margin: 24px 0; }
+        .markdown-body .anchor, .markdown-body .octicon { display: none; }
+        .markdown-body .contains-task-list { list-style: none; padding-inline-start: 0; }
+        .markdown-body .task-list-item-checkbox { margin-inline-end: 6px; }
+        .markdown-body .markdown-alert { padding: 8px 16px; margin-bottom: 16px; border-inline-start: 0.25em solid var(--link-color); }
+        .markdown-body .markdown-alert-title { font-weight: 700; margin: 0 0 4px; }
+        .markdown-body kbd { border: 1px solid var(--card-border); border-radius: 6px; padding: 2px 6px; font-size: 80%; background: var(--bg-color); }
+        .pl-c { color: #6e7781; } .pl-k { color: #cf222e; } .pl-s, .pl-pds { color: #0a3069; }
+        .pl-c1, .pl-sr { color: #0550ae; } .pl-en, .pl-e { color: #8250df; } .pl-smi, .pl-v { color: #953800; }
+        .pl-ent { color: #116329; }
+        [data-theme="dark"] .pl-c { color: #8b949e; } [data-theme="dark"] .pl-k { color: #ff7b72; }
+        [data-theme="dark"] .pl-s, [data-theme="dark"] .pl-pds { color: #a5d6ff; }
+        [data-theme="dark"] .pl-c1, [data-theme="dark"] .pl-sr { color: #79c0ff; }
+        [data-theme="dark"] .pl-en, [data-theme="dark"] .pl-e { color: #d2a8ff; }
+        [data-theme="dark"] .pl-smi, [data-theme="dark"] .pl-v { color: #ffa657; }
+        [data-theme="dark"] .pl-ent { color: #7ee787; }
+
+        @media (max-width: 640px) {
+            .repo-header { padding: 18px; }
+            .upload-row, .pick-buttons { grid-template-columns: 1fr; }
+            .hide-sm { display: none; }
+            .markdown-body { padding: 18px; }
+        }
+            .custom-gitignore-box {
+            background: var(--btn-outline-hover);
+            border: 1px dashed var(--btn-outline-border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin: 12px 0;
+        }
+        .custom-gitignore-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .custom-gitignore-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .quick-ignore-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .tag-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 3px 10px;
+            font-size: 0.8em;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: 0.2s;
+        }
+        .tag-btn:hover {
+            background: var(--btn-primary);
+            color: #fff;
+            border-color: var(--btn-primary);
+        }
+        .custom-tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .active-ignore-tag {
+            background: rgba(215, 58, 73, 0.12);
+            color: var(--btn-danger);
+            border: 1px solid rgba(215, 58, 73, 0.3);
+            border-radius: 14px;
+            padding: 3px 10px;
+            font-size: 0.82em;
+            font-family: monospace;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .active-ignore-tag .remove-tag {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            line-height: 1;
+        }
+        .tree-ignore-btn {
+            background: transparent;
+            border: 1px solid var(--btn-outline-border);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: 0.75em;
+            cursor: pointer;
+            color: var(--text-muted);
+            margin-inline-start: auto;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+                .field-error {
+            color: var(--btn-danger);
+            font-size: 0.82em;
+            margin-top: 4px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .field-error::before {
+            content: "⚠️ ";
+        }
+        .tree-ignore-btn:hover {
+            background: rgba(215, 58, 73, 0.15);
+            color: var(--btn-danger);
+            border-color: var(--btn-danger);
+        }
+        .tree-name {
+            direction: ltr;
+            unicode-bidi: isolate;
+            display: inline-block;
+        }
+        .tree-item.ignored {
+            opacity: 0.60;
+            background: rgba(215, 58, 73, 0.04);
+        }
+        .tree-item.ignored .tree-name {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+    </style>
+
+    <script>
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+    </script>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a th:href="@{/}" class="navbar-brand">
+            <img th:src="@{/favicon_light.png?v=1}" alt="Logo" class="navbar-logo" id="navbar-logo">
+            <span>GitHub Manager</span>
+        </a>
+        <div class="nav-links">
+            <a th:href="@{/repos/{owner}/{repoName}(owner=${repo.owner.login}, repoName=${repo.name}, lang='ar')}"
+               class="btn btn-outline" th:if="${#locale.language != 'ar'}">العربية</a>
+            <a th:href="@{/repos/{owner}/{repoName}(owner=${repo.owner.login}, repoName=${repo.name}, lang='en')}"
+               class="btn btn-outline" th:if="${#locale.language == 'ar'}">English</a>
+
+            <button type="button" onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">
+                <span id="themeIcon">🌙</span><span id="themeLabel" class="hide-sm"></span>
+            </button>
+
+            <a th:href="@{/}" class="btn btn-outline">
+                <span class="arrow">←</span><span th:text="#{nav.back}">Back to Home</span>
+            </a>
+
+            <!-- Refresh without cache button -->
+            <form th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/cache/refresh'}" method="post" style="margin:0;">
+                <button type="submit" class="btn btn-outline" style="font-size:0.85em;">
+                    &#x27F3; <span th:text="#{nav.cache_refresh}">Refresh</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div style="background:var(--btn-outline-hover);border-bottom:1px solid var(--card-border);text-align:center;font-size:0.8em;color:var(--text-muted);padding:5px 20px;" th:text="#{nav.cache_refresh_repo_hint}"></div>
+
+<div class="container">
+
+    <div th:if="${errorMessage}" class="error-alert">
+        <span>❌</span>
+        <span th:text="${errorMessage}"></span>
+    </div>
+
+    <!-- ===== Header ===== -->
+    <div class="card repo-header">
+        <div class="repo-info">
+            <h2 class="repo-title">
+                <span th:text="${repo.name}">Repo Name</span>
+                <span class="badge" th:text="${repo.private} ? #{repo.private} : #{repo.public}"></span>
+            </h2>
+
+            <div id="descViewMode" class="desc-view">
+                <p class="repo-desc"
+                   th:text="${repo.description != null and !repo.description.isEmpty()} ? ${repo.description} : #{repo.no_desc}"></p>
+                <button type="button" onclick="toggleDescEdit()" class="btn btn-outline btn-sm"
+                        th:title="#{repo.edit_description}">✏️</button>
+            </div>
+
+            <form id="descEditMode" class="desc-edit hidden"
+                  th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/description'}" method="post">
+                <textarea name="newDescription" class="form-control" rows="2" maxlength="350"
+                          style="margin-bottom: 10px; resize: vertical;" th:text="${repo.description}"></textarea>
+                <div class="field-error" th:if="${descError != null}" th:text="${descError}" style="margin-bottom:8px;"></div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn btn-primary btn-sm" th:text="#{repo.save_changes}">Save</button>
+                    <button type="button" onclick="toggleDescEdit()" class="btn btn-outline btn-sm" th:text="#{repo.cancel}">Cancel</button>
+                </div>
+            </form>
+
+            <div class="repo-meta">
+                <span th:if="${repo.created_at != null}">
+                    📅 <span th:text="#{repo.created_at}">Created At</span>:
+                    <strong th:text="${#strings.substring(repo.created_at, 0, 10)}">2024-01-01</strong>
+                </span>
+                <span th:if="${repo.updated_at != null}">
+                    🕒 <span th:text="#{repo.last_updated}">Last Updated</span>:
+                    <strong th:text="${#strings.substring(repo.updated_at, 0, 10)}">2024-01-01</strong>
+                </span>
+            </div>
+        </div>
+
+        <div class="repo-actions">
+            <form th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/visibility'}" method="post" style="margin: 0;">
+                <input type="hidden" name="isPrivate" th:value="${!repo.private}">
+                <button type="submit" class="btn btn-outline">
+                    <span th:if="${repo.private}" th:text="#{repo.make_public}">Make public</span>
+                    <span th:if="${!repo.private}" th:text="#{repo.make_private}">Make private</span>
+                </button>
+            </form>
+            <a th:href="${repo.html_url}" target="_blank" rel="noopener" class="btn btn-primary" th:text="#{repo.view_on_github}">View on GitHub</a>
+        </div>
+    </div>
+
+    <!-- ===== Stats ===== -->
+    <div class="stats-grid">
+        <div class="card stat-card">
+            <div class="stat-icon">⭐</div>
+            <div><span class="stat-value" th:text="${repo.stargazers_count}">0</span><span class="stat-label" th:text="#{repo.stars}">Stars</span></div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon">🍴</div>
+            <div><span class="stat-value" th:text="${repo.forks_count}">0</span><span class="stat-label" th:text="#{repo.forks}">Forks</span></div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon">👁️</div>
+            <div><span class="stat-value" th:text="${repo.watchers_count}">0</span><span class="stat-label" th:text="#{repo.watchers}">Watchers</span></div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-icon">⚠️</div>
+            <div><span class="stat-value" th:text="${repo.open_issues_count}">0</span><span class="stat-label" th:text="#{repo.open_issues}">Open Issues</span></div>
+        </div>
+    </div>
+
+    <!-- ===== README ===== -->
+    <th:block th:if="${readmeHtml != null}">
+        <h3 class="section-title">📖 <span th:text="#{repo.readme_section}">README</span></h3>
+        <div class="card">
+            <article id="readmeBody" class="markdown-body"></article>
+        </div>
+    </th:block>
+
+    <!-- ===== Issues ===== -->
+    <h3 class="section-title">
+        <span th:text="#{repo.issues_section}">Open Issues</span>
+        <span class="count-pill" th:text="${issues.size()}">0</span>
+    </h3>
+    <div class="card">
+        <ul class="issue-list" th:if="${!issues.isEmpty()}">
+            <li class="issue-item" th:each="issue : ${issues}">
+                <span>🔴</span>
+                <a th:href="${issue.html_url}" target="_blank" rel="noopener" th:text="${issue.title}"></a>
+                <span class="issue-number" th:text="'#' + ${issue.number}"></span>
+            </li>
+        </ul>
+        <div class="empty-state" th:if="${issues.isEmpty()}" th:text="#{repo.no_issues}">No open issues.</div>
+    </div>
+
+    <!-- ===== Branches ===== -->
+    <h3 class="section-title">
+        <span th:text="#{repo.branches_section}">Branches</span>
+        <span class="count-pill" th:text="${branches != null} ? ${branches.size()} : 0">0</span>
+    </h3>
+    <div class="branches-grid" th:if="${branches != null && !branches.isEmpty()}">
+        <div class="card branch-card" th:each="branch : ${branches}">
+            <div class="branch-name"><span>🌿</span><span th:text="${branch.name}"></span></div>
+            <div class="branch-forms">
+                <form class="inline-form"
+                      th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/branches/rename'}" method="post">
+                    <input type="hidden" name="oldBranchName" th:value="${branch.name}">
+                    <input type="text" name="newBranchName" class="form-control" required
+                           th:placeholder="#{repo.branch_rename_placeholder}">
+                    <button type="submit" class="btn btn-outline btn-sm" th:text="#{repo.branch_rename}">Rename</button>
+                    <div class="field-error" th:if="${renameError != null && renameOldBranch == branch.name}" th:text="${renameError}"></div>
+                </form>
+                <form class="inline-form" data-confirm="" th:attr="data-confirm=#{repo.branch_delete_confirm}"
+                      th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/branches/delete'}" method="post">
+                    <input type="hidden" name="branchName" th:value="${branch.name}">
+                    <button type="submit" class="btn btn-danger btn-sm btn-block" th:text="#{repo.branch_delete}">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="card empty-state" th:if="${branches == null || branches.isEmpty()}" th:text="#{repo.no_branches}">No branches.</div>
+
+    <div class="card create-branch-card">
+        <h4>🌿 <span th:text="#{repo.create_branch_title}">Create a new branch</span></h4>
+        <form class="create-branch-form"
+              th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/branches'}" method="post">
+            <input type="text" name="newBranchName" class="form-control" required
+                   th:aria-label="#{repo.create_branch_label}"
+                   th:placeholder="#{repo.create_branch_placeholder}">
+            <button type="submit" class="btn btn-primary" th:text="#{repo.create_branch_submit}">Create branch</button>
+        </form>
+    </div>
+
+    <!-- ===== Tools ===== -->
+    <h3 class="section-title" th:text="#{repo.tools_section}">Advanced Tools</h3>
+    <div class="tools-grid">
+
+        <!-- Upload -->
+        <div class="card tool-card wide">
+            <h4>📁 <span th:text="#{upload.title}">Upload files / folders</span></h4>
+
+            <div class="form-group">
+                <label th:text="#{upload.method_label}">Choose method</label>
+                <div class="pick-buttons">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('fileInput').click()">
+                        📄 <span th:text="#{upload.choose_files}">Choose files</span>
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('folderInput').click()">
+                        📁 <span th:text="#{upload.choose_folder}">Choose folder</span>
+                    </button>
+                </div>
+                <input type="file" id="fileInput" class="hidden" multiple>
+                <input type="file" id="folderInput" class="hidden" webkitdirectory directory multiple>
+            </div>
+
+            <div id="treeContainer" class="tree-container hidden"></div>
+            <div id="selectionSummary" class="selection-summary"></div>
+
+            <!-- Custom .gitignore Section -->
+            <div id="customGitignoreSection" class="custom-gitignore-box hidden">
+                <div class="custom-gitignore-header">
+                    <span style="font-weight:600; font-size:0.95em;">🛡️ <span th:text="#{upload.custom_gitignore_title}">استثناء ملفات في .gitignore</span></span>
+                    <span class="badge-hint" style="font-size:0.8em; opacity:0.85;" th:text="#{upload.custom_gitignore_desc}">تحديد ملفات لكتابتها في .gitignore وتجاوز رفعها</span>
+                </div>
+                <div class="custom-gitignore-input-row" style="margin-top: 8px;">
+                    <input type="text" id="customIgnoreInput" class="form-control"
+                           th:placeholder="#{upload.custom_gitignore_placeholder}"
+                           placeholder="مثال: main.py أو .env أو *.log">
+                    <button type="button" class="btn btn-outline btn-sm" id="addCustomIgnoreBtn" onclick="addCustomIgnoreRule()" style="white-space:nowrap;">
+                        ➕ <span th:text="#{upload.custom_gitignore_add}">إضافة</span>
+                    </button>
+                </div>
+                <div class="quick-ignore-tags" style="margin-top: 6px;">
+                    <small style="opacity:0.8; margin-inline-end: 4px;" th:text="#{upload.quick_suggest}">اقتراحات سريعة:</small>
+                    <button type="button" class="tag-btn" onclick="addCustomIgnoreRule('.env')">.env</button>
+                    <button type="button" class="tag-btn" onclick="addCustomIgnoreRule('*.log')">*.log</button>
+                    <button type="button" class="tag-btn" onclick="addCustomIgnoreRule('__pycache__/')">__pycache__/</button>
+                    <button type="button" class="tag-btn" onclick="addCustomIgnoreRule('target/')">target/</button>
+                    <button type="button" class="tag-btn" onclick="addCustomIgnoreRule('node_modules/')">node_modules/</button>
+                </div>
+                <div id="customIgnoreTagsList" class="custom-tags-container" style="margin-top: 8px;"></div>
+            </div>
+
+            <label class="check-line" for="respectGitignore">
+                <input type="checkbox" id="respectGitignore" checked>
+                <span th:text="#{upload.gitignore_label}">Respect .gitignore</span>
+            </label>
+
+            <div class="upload-row">
+                <div class="form-group">
+                    <label for="folderCommitMessage" th:text="#{upload.commit_label}">Commit message</label>
+                    <input type="text" id="folderCommitMessage" class="form-control" required
+                           th:placeholder="#{upload.commit_placeholder}">
+                </div>
+                <div class="form-group">
+                    <label for="folderBranch" th:text="#{upload.branch_label}">Branch</label>
+                    <select id="folderBranch" class="form-control">
+                        <option value="" th:text="#{upload.default_branch}">Default branch</option>
+                        <option th:each="b : ${branches}" th:value="${b.name}" th:text="${b.name}"></option>
+                    </select>
+                </div>
+            </div>
+
+            <label class="warning-box" for="forceUploadCheck">
+                <input type="checkbox" id="forceUploadCheck">
+                <span>⚠️ <span th:text="#{upload.force_label}">Force Upload</span></span>
+            </label>
+
+            <div id="progressContainer" class="progress-wrap hidden">
+                <div class="progress-head">
+                    <span id="progressStatus"></span>
+                    <span id="progressText">0%</span>
+                </div>
+                <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+                <div id="fileCountText" class="progress-files"></div>
+                <div id="planSummary" class="plan-summary hidden"></div>
+            </div>
+
+            <button type="button" onclick="uploadFolder()" class="btn btn-primary btn-block" style="margin-top: 14px;"
+                    id="uploadBtn" th:text="#{upload.submit}">Upload to GitHub</button>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="card tool-card danger-card">
+            <h4>⚠️ <span th:text="#{danger.title}">Danger zone</span></h4>
+            <p th:text="#{danger.description}">Deleting the repository cannot be undone.</p>
+            <button type="button" class="btn btn-danger btn-block" onclick="openDeleteDialog()" th:text="#{danger.delete}">Delete repository</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Delete dialog (اكتب اسم المستودع) ===== -->
+<dialog id="deleteDialog">
+    <form class="dialog-body" method="post"
+          th:action="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name} + '/delete'}">
+        <h4 style="margin: 0 0 10px; color: var(--btn-danger);">⚠️ <span th:text="#{danger.dialog_title}">Delete repository</span></h4>
+        <p th:text="#{danger.dialog_text}">This cannot be undone.</p>
+        <p><span th:text="#{danger.type_to_confirm}">Type the repository name to confirm:</span>
+            <code class="confirm-code" th:text="${repo.name}">repo</code></p>
+        <input type="text" name="confirmName" id="deleteConfirmInput" class="form-control"
+               autocomplete="off" spellcheck="false">
+        <div class="dialog-actions">
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('deleteDialog').close()" th:text="#{repo.cancel}">Cancel</button>
+            <button type="submit" id="deleteConfirmBtn" class="btn btn-danger" disabled th:text="#{danger.delete_confirm_btn}">Delete</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- ===== Secrets dialog ===== -->
+<dialog id="secretsDialog">
+    <div class="dialog-body">
+        <h4 style="margin: 0 0 10px; color: var(--btn-danger);">🔐 <span th:text="#{secrets.title}">Possible secrets found</span></h4>
+        <p id="secretsIntro" style="margin: 0;"></p>
+        <p id="secretsPublic" class="secrets-public hidden"></p>
+        <ul id="secretsList" class="secrets-list"></ul>
+        <p id="secretsHint" style="color: var(--text-muted); font-size: 0.85em; margin: 12px 0 0;"></p>
+        <div class="dialog-actions">
+            <button type="button" class="btn btn-outline" data-decision="cancel" th:text="#{secrets.cancel}">Cancel upload</button>
+            <button type="button" class="btn btn-primary" data-decision="exclude" th:text="#{secrets.exclude}">Exclude flagged files</button>
+            <button type="button" class="btn btn-danger" data-decision="continue" th:text="#{secrets.continue}">Upload anyway</button>
+        </div>
+    </div>
+</dialog>
+
+<script th:src="@{/js/toast.js?v=1}"></script>
+<script th:src="@{/js/gitignore.js?v=1}"></script>
+<script th:src="@{/js/secret-scanner.js?v=1}"></script>
+
+<script th:inline="javascript">
+    const $ = function (id) { return document.getElementById(id); };
+
+    const owner = /*[[${repo.owner.login}]]*/ 'owner';
+    const repoName = /*[[${repo.name}]]*/ 'repo';
+    const defaultBranch = /*[[${repo.default_branch}]]*/ 'main';
+    const isPrivateRepo = /*[[${repo.private}]]*/ true;
+    const readmeHtml = /*[[${readmeHtml}]]*/ null;
+
+    const MAX_FILE_BYTES = 100 * 1024 * 1024;
+
+    const i18n = {
+        darkMode:        /*[[#{nav.dark_mode}]]*/ 'Dark Mode',
+        lightMode:       /*[[#{nav.light_mode}]]*/ 'Light Mode',
+        noFiles:         /*[[#{upload.no_files}]]*/ 'No files selected yet.',
+        selected:        /*[[#{upload.selected}]]*/ '{0} of {1} files selected',
+        gitignoreExcl:   /*[[#{upload.gitignore_excluded}]]*/ '{0} excluded by .gitignore',
+        tooLarge:        /*[[#{upload.too_large}]]*/ '{0} files over 100 MB are excluded',
+        emptySkipped:    /*[[#{upload.empty_skipped}]]*/ '{0} empty files are skipped',
+        submit:          /*[[#{upload.submit}]]*/ 'Upload to GitHub',
+        inProgress:      /*[[#{upload.in_progress}]]*/ 'Uploading...',
+        uploading:       /*[[#{upload.uploading}]]*/ 'Uploading to GitHub...',
+        filesDone:       /*[[#{upload.files_done}]]*/ '{0} / {1} files uploaded',
+        completeStatus:  /*[[#{upload.complete_status}]]*/ 'Done! Refreshing...',
+        completeCount:   /*[[#{upload.complete_count}]]*/ '{0} files uploaded.',
+        connectionLost:  /*[[#{upload.connection_lost}]]*/ 'Connection lost.',
+        errNoFiles:      /*[[#{upload.err_no_files}]]*/ 'Please select files first.',
+        errNoCommit:     /*[[#{upload.err_no_commit}]]*/ 'Please enter a commit message.',
+        errAllIgnored:   /*[[#{upload.err_all_ignored}]]*/ 'All files are excluded.',
+        forceConfirm:    /*[[#{upload.force_confirm}]]*/ 'Are you sure?',
+        forceAll:        /*[[#{upload.force_all}]]*/ 'Force mode: all files will be uploaded.',
+        failed:          /*[[#{upload.failed}]]*/ 'Upload failed:',
+        unknownError:    /*[[#{upload.unknown_error}]]*/ 'Unknown error',
+        serverError:     /*[[#{upload.server_error}]]*/ 'Server error',
+        connectFailed:   /*[[#{upload.connect_failed}]]*/ 'Could not reach the server.',
+        networkLost:     /*[[#{upload.network_lost}]]*/ 'Connection to the server was lost.',
+        analyzing:       /*[[#{upload.analyzing}]]*/ 'Comparing with GitHub...',
+        analyzingCount:  /*[[#{upload.analyzing_count}]]*/ 'Analyzing: {0} / {1}',
+        planSummary:     /*[[#{upload.plan_summary}]]*/ 'New: {0} - Modified: {1} - Unchanged: {2}',
+        noChanges:       /*[[#{upload.no_changes}]]*/ 'No changes.',
+        planFailed:      /*[[#{upload.plan_failed}]]*/ 'Could not compare with GitHub.',
+        scanning:        /*[[#{upload.scanning}]]*/ 'Scanning for secrets: {0} / {1}',
+        sending:         /*[[#{upload.sending}]]*/ 'Sending to server... {0}%',
+        secretsIntro:    /*[[#{secrets.intro}]]*/ '{1} possible issues in {0} files.',
+        secretsPublic:   /*[[#{secrets.public_warning}]]*/ 'This repository is public.',
+        secretsHint:     /*[[#{secrets.hint}]]*/ 'Rotate exposed keys.',
+        secretsLine:     /*[[#{secrets.line}]]*/ 'line {0}',
+        secretsWholeFile:/*[[#{secrets.whole_file}]]*/ 'sensitive file',
+        gitignoreBtnText:        /*[[#{upload.gitignore_btn_text}]]*/ '🚫 .gitignore',
+        gitignoreBtnIgnored:     /*[[#{upload.gitignore_btn_ignored}]]*/ '🚫 Excluded in .gitignore',
+        gitignoreBtnTitle:       /*[[#{upload.gitignore_btn_title}]]*/ 'Exclude this file and write to .gitignore',
+        gitignorePatternAdded:   /*[[#{upload.gitignore_pattern_added}]]*/ 'Pattern already added',
+        gitignorePatternRemoved: /*[[#{upload.gitignore_pattern_removed}]]*/ 'Removed {0} from .gitignore',
+        gitignoreRuleSuccess:    /*[[#{upload.gitignore_rule_success}]]*/ 'Added {0} to .gitignore and excluded successfully',
+        gitignoreRuleExists:     /*[[#{upload.gitignore_rule_exists}]]*/ 'Pattern already exists in .gitignore and is excluded',
+        gitignoreCheckboxLocked: /*[[#{upload.gitignore_checkbox_locked}]]*/ 'Excluded by .gitignore and cannot be selected for upload',
+        gitignoreRemoteImported: /*[[#{upload.gitignore_remote_imported}]]*/ 'Imported .gitignore from GitHub and updated rules',
+        remove:                  /*[[#{common.remove}]]*/ 'Remove'
+    };
+
+    function fmt(str) {
+        const args = Array.prototype.slice.call(arguments, 1);
+        return str.replace(/\{(\d+)\}/g, function (m, i) { return args[i] !== undefined ? args[i] : m; });
+    }
+
+    // ===== Theme =====
+    function updateAssets(theme) {
+        const dark = theme === 'dark';
+        const logo = dark ? /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1'
+            : /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+        if ($('dynamic-favicon')) $('dynamic-favicon').href = logo;
+        if ($('navbar-logo')) $('navbar-logo').src = logo;
+        $('themeIcon').innerText = dark ? '☀️' : '🌙';
+        $('themeLabel').innerText = dark ? i18n.lightMode : i18n.darkMode;
+    }
+
+    function toggleTheme() {
+        const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateAssets(newTheme);
+    }
+    updateAssets(document.documentElement.getAttribute('data-theme'));
+
+    // ===== Confirm dialogs (data-confirm) =====
+    document.addEventListener('submit', function (e) {
+        const msg = e.target.getAttribute && e.target.getAttribute('data-confirm');
+        if (msg && !confirm(msg)) e.preventDefault();
+    });
+
+    // ===== Description edit =====
+    function toggleDescEdit() {
+        $('descViewMode').classList.toggle('hidden');
+        $('descEditMode').classList.toggle('hidden');
+    }
+
+    // ===== Delete (type the repo name) =====
+    function openDeleteDialog() {
+        $('deleteConfirmInput').value = '';
+        $('deleteConfirmBtn').disabled = true;
+        $('deleteDialog').showModal();
+        $('deleteConfirmInput').focus();
+    }
+    $('deleteConfirmInput').addEventListener('input', function (e) {
+        $('deleteConfirmBtn').disabled = e.target.value !== repoName;
+    });
+
+    // ===== README rendering =====
+    function renderReadme() {
+        const box = $('readmeBody');
+        if (!box || !readmeHtml) return;
+
+        // الـ HTML بيتحلل في document معزول (مفيش سكريبتات بتتنفذ ولا صور بتتحمل) وبعدين بننظفه
+        const doc = new DOMParser().parseFromString(readmeHtml, 'text/html');
+        doc.querySelectorAll('script, style, iframe, object, embed, form, link, meta, base, source').forEach(function (n) { n.remove(); });
+        doc.querySelectorAll('*').forEach(function (el) {
+            Array.from(el.attributes).forEach(function (a) {
+                if (/^on/i.test(a.name)) el.removeAttribute(a.name);
+            });
+        });
+
+        const rawBase = 'https://raw.githubusercontent.com/' + owner + '/' + repoName + '/' + defaultBranch + '/';
+        const blobBase = 'https://github.com/' + owner + '/' + repoName + '/blob/' + defaultBranch + '/';
+        const isAbsolute = function (u) { return /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(u); };
+        const strip = function (u) { return u.replace(/^\.?\//, ''); };
+
+        doc.querySelectorAll('img').forEach(function (img) {
+            img.removeAttribute('srcset');
+            img.setAttribute('loading', 'lazy');
+            const src = img.getAttribute('src') || '';
+            if (!src || isAbsolute(src)) return;
+            if (isPrivateRepo) {
+                // مستودع خاص: الصورة بتعدي على السيرفر بتاعنا لأن raw.githubusercontent محتاج توكن
+                const norm = new URL(strip(src), 'http://local/').pathname.replace(/^\//, '');
+                img.setAttribute('src', '/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(repoName) + '/raw/' + norm);
+            } else {
+                img.setAttribute('src', new URL(strip(src), rawBase).href);
+            }
+        });
+
+        doc.querySelectorAll('a[href]').forEach(function (a) {
+            const href = a.getAttribute('href') || '';
+            if (/^\s*javascript:/i.test(href)) { a.removeAttribute('href'); return; }
+            if (href.charAt(0) === '#') return;
+            if (!isAbsolute(href)) a.setAttribute('href', new URL(strip(href), blobBase).href);
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
+        });
+
+        doc.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th').forEach(function (el) {
+            el.setAttribute('dir', 'auto');
+        });
+
+        box.replaceChildren.apply(box, Array.from(doc.body.childNodes));
+
+        box.addEventListener('click', function (e) {
+            const a = e.target.closest('a[href^="#"]');
+            if (!a) return;
+            e.preventDefault();
+            let id = a.getAttribute('href').slice(1);
+            try { id = decodeURIComponent(id); } catch (err) { /* keep raw */ }
+            const target = box.querySelector('#' + CSS.escape('user-content-' + id)) || box.querySelector('#' + CSS.escape(id));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
+    // ===== File selection & tree =====
+    let allFiles = [];
+    let fileTree = {};
+    let gitignoreCount = 0;
+    let busy = false;
+    const ignoredPaths = new Set();
+    const collapsed = new Set();
+
+    const pathOf = function (f) { return f.webkitRelativePath || f.name; };
+    const isHardIgnored = function (p) { return /(^|\/)\.git\//.test(p); };
+    const isAutoIgnored = function (p) { return /(^|\/)(node_modules|target)\//.test(p) || /(^|\/)(\.DS_Store|Thumbs\.db)$/.test(p); };
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    $('fileInput').addEventListener('change', function (e) {
+        const picked = Array.from(e.target.files);
+        e.target.value = '';
+        processSelectedFiles(picked);
+    });
+    $('folderInput').addEventListener('change', function (e) {
+        const picked = Array.from(e.target.files);
+        e.target.value = '';
+        processSelectedFiles(picked);
+    });
+    let remoteGitignoreCache = null;
+
+    async function fetchRemoteGitignore(branch) {
+        if (remoteGitignoreCache !== null) {
+            return remoteGitignoreCache;
+        }
+        const b = branch || ($('folderBranch') ? $('folderBranch').value : '');
+        try {
+            const url = '/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(repoName)
+                + '/file-content?path=.gitignore' + (b ? '&branch=' + encodeURIComponent(b) : '');
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.exists && typeof data.content === 'string') {
+                    remoteGitignoreCache = data.content;
+                    return data.content;
+                }
+            }
+        } catch (err) {
+            console.warn('Could not fetch remote .gitignore:', err);
+        }
+        remoteGitignoreCache = false;
+        return null;
+    }
+
+    $('respectGitignore').addEventListener('change', function () {
+        if (allFiles.length > 0) processSelectedFiles(allFiles.slice());
+    });
+    if ($('folderBranch')) {
+        $('folderBranch').addEventListener('change', function () {
+            remoteGitignoreCache = null;
+        });
+    }
+
+    async function processSelectedFiles(files) {
+        allFiles = files;
+        ignoredPaths.clear();
+        collapsed.clear();
+        fileTree = {};
+        gitignoreCount = 0;
+
+        const container = $('treeContainer');
+        const customBox = $('customGitignoreSection');
+        if (allFiles.length === 0) {
+            container.classList.add('hidden');
+            if (customBox) customBox.classList.add('hidden');
+            updateSummary();
+            return;
+        }
+        container.classList.remove('hidden');
+        if (customBox) customBox.classList.remove('hidden');
+
+        allFiles.forEach(function (file) {
+            const path = pathOf(file);
+            if (isHardIgnored(path) || isAutoIgnored(path)) ignoredPaths.add(path);
+
+            const parts = path.split('/');
+            let current = fileTree;
+            for (let i = 0; i < parts.length - 1; i++) {
+                const part = parts[i];
+                if (!current[part]) {
+                    current[part] = { _isDir: true, _children: {}, _path: parts.slice(0, i + 1).join('/') };
+                }
+                current = current[part]._children;
+            }
+            current[parts[parts.length - 1]] = { _isDir: false, _path: path, _size: file.size };
+        });
+
+        render();
+
+        if ($('respectGitignore').checked) {
+            let matcher = await GitIgnore.build(allFiles, pathOf);
+            if (!matcher.hasRules) {
+                const b = $('folderBranch') ? $('folderBranch').value : '';
+                const remoteContent = await fetchRemoteGitignore(b);
+                if (remoteContent) {
+                    const blob = new Blob([remoteContent], { type: 'text/plain' });
+                    const remoteFile = new File([blob], '.gitignore', { type: 'text/plain' });
+                    matcher = await GitIgnore.build([remoteFile], pathOf);
+                }
+            }
+            if (matcher && matcher.hasRules) {
+                allFiles.forEach(function (file) {
+                    const p = pathOf(file);
+                    if (!ignoredPaths.has(p) && matcher.ignores(p)) {
+                        ignoredPaths.add(p);
+                        gitignoreCount++;
+                    }
+                });
+                render();
+            }
+        }
+    }
+
+    function collectFiles(node, out) {
+        out = out || [];
+        Object.keys(node).forEach(function (key) {
+            const item = node[key];
+            if (item._isDir) collectFiles(item._children, out);
+            else out.push(item);
+        });
+        return out;
+    }
+
+    function render() {
+        const root = $('treeContainer');
+        const scroll = root.scrollTop;
+        root.innerHTML = '';
+        if (allFiles.length === 0) {
+            root.innerHTML = '<div class="tree-empty">' + i18n.noFiles + '</div>';
+        } else {
+            root.appendChild(buildList(fileTree));
+        }
+        root.scrollTop = scroll;
+        updateSummary();
+    }
+
+    function buildList(node) {
+        const ul = document.createElement('ul');
+        ul.className = 'tree-list';
+
+        const keys = Object.keys(node).sort(function (a, b) {
+            const da = node[a]._isDir, db = node[b]._isDir;
+            if (da !== db) return da ? -1 : 1;
+            return a.localeCompare(b);
+        });
+
+        keys.forEach(function (key) {
+            const item = node[key];
+            const li = document.createElement('li');
+            const row = document.createElement('div');
+            row.className = 'tree-item';
+
+            const toggle = document.createElement('span');
+            toggle.className = 'tree-toggle';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+
+            const name = document.createElement('span');
+            name.innerText = key;
+
+            if (item._isDir) {
+                const files = collectFiles(item._children);
+                const selectable = files.filter(function (f) { return !isHardIgnored(f._path); });
+                const selected = selectable.filter(function (f) { return !ignoredPaths.has(f._path); }).length;
+                const isCollapsed = collapsed.has(item._path);
+
+                toggle.innerText = isCollapsed ? '📁' : '📂';
+                toggle.onclick = function () {
+                    if (collapsed.has(item._path)) collapsed.delete(item._path);
+                    else collapsed.add(item._path);
+                    render();
+                };
+
+                checkbox.disabled = selectable.length === 0;
+                checkbox.checked = selected > 0;
+                checkbox.indeterminate = selected > 0 && selected < selectable.length;
+                checkbox.onchange = function () {
+                    selectable.forEach(function (f) {
+                        if (checkbox.checked) ignoredPaths.delete(f._path);
+                        else ignoredPaths.add(f._path);
+                    });
+                    render();
+                };
+
+                name.className = 'tree-name dir';
+                row.appendChild(toggle);
+                row.appendChild(checkbox);
+                row.appendChild(name);
+                li.appendChild(row);
+
+                if (!isCollapsed) li.appendChild(buildList(item._children));
+            } else {
+                toggle.innerText = '📄';
+                const isCustomIgnored = customIgnoreRules.has(key) || customIgnoreRules.has(item._path);
+                const isGitIgnored = ignoredPaths.has(item._path) || isCustomIgnored;
+                const isHard = isHardIgnored(item._path);
+
+                if (isHard || isGitIgnored) {
+                    checkbox.disabled = true;
+                    checkbox.checked = false;
+                    checkbox.title = isHard ? 'Excluded (.git folder)' : (i18n.gitignoreCheckboxLocked || (document.documentElement.lang === 'ar' ? 'مستثنى في .gitignore ولا يمكن اختياره للرفع' : 'Excluded by .gitignore and cannot be selected for upload'));
+                    row.classList.add('ignored');
+                } else {
+                    checkbox.disabled = false;
+                    checkbox.checked = true;
+                    checkbox.title = '';
+                    row.classList.remove('ignored');
+                }
+
+                checkbox.onchange = function () {
+                    if (checkbox.disabled) return;
+                    if (checkbox.checked) ignoredPaths.delete(item._path);
+                    else ignoredPaths.add(item._path);
+                    render();
+                };
+
+                const size = document.createElement('span');
+                size.className = 'tree-size';
+                size.innerText = formatSize(item._size);
+
+                row.appendChild(toggle);
+                row.appendChild(checkbox);
+                row.appendChild(name);
+                row.appendChild(size);
+
+                if (key !== '.gitignore' && !isHard) {
+                    const ignoreBtn = document.createElement('button');
+                    ignoreBtn.type = 'button';
+                    ignoreBtn.className = 'tree-ignore-btn' + (isCustomIgnored ? ' active' : '');
+                    if (isCustomIgnored) {
+                        ignoreBtn.style.cssText = 'background:rgba(215, 58, 73, 0.18); color:#cf222e; border-color:#cf222e; font-weight:bold;';
+                    }
+                    const isAr = (document.documentElement.lang === 'ar');
+                    const defaultText = isAr ? '🚫 استثناء' : '🚫 .gitignore';
+                    const defaultIgnoredText = isAr ? '🚫 مستثنى' : '🚫 Excluded';
+
+                    const btnTitle = (i18n.gitignoreBtnTitle && i18n.gitignoreBtnTitle !== 'undefined')
+                        ? i18n.gitignoreBtnTitle
+                        : (isAr ? 'استثناء هذا الملف وكتابته في .gitignore' : 'Exclude this file and write to .gitignore');
+                    ignoreBtn.title = btnTitle;
+
+                    const btnText = isCustomIgnored
+                        ? ((i18n.gitignoreBtnIgnored && i18n.gitignoreBtnIgnored !== 'undefined') ? i18n.gitignoreBtnIgnored : defaultIgnoredText)
+                        : ((i18n.gitignoreBtnText && i18n.gitignoreBtnText !== 'undefined') ? i18n.gitignoreBtnText : defaultText);
+                    ignoreBtn.innerText = btnText;
+
+                    ignoreBtn.onclick = async function (e) {
+                        e.stopPropagation();
+                        if (isCustomIgnored) {
+                            await removeCustomIgnoreRule(key);
+                        } else {
+                            await addCustomIgnoreRule(key);
+                        }
+                    };
+                    row.appendChild(ignoreBtn);
+                }
+
+                li.appendChild(row);
+            }
+            ul.appendChild(li);
+        });
+        return ul;
+    }
+
+    /** الملفات اللي هتتحسب للرفع: غير مستثناة، مش فاضية، ومش أكبر من 100MB */
+    function getCandidates() {
+        return allFiles
+            .filter(function (f) {
+                const p = pathOf(f);
+                return !ignoredPaths.has(p) && !isHardIgnored(p) && f.size > 0 && f.size <= MAX_FILE_BYTES;
+            })
+            .map(function (f) { return { file: f, path: pathOf(f) }; });
+    }
+
+    function updateSummary() {
+        const el = $('selectionSummary');
+        if (allFiles.length === 0) { el.innerText = ''; return; }
+
+        const parts = [fmt(i18n.selected, getCandidates().length, allFiles.length)];
+        if (gitignoreCount > 0) parts.push(fmt(i18n.gitignoreExcl, gitignoreCount));
+        const tooLarge = allFiles.filter(function (f) { return f.size > MAX_FILE_BYTES; }).length;
+        const empty = allFiles.filter(function (f) { return f.size === 0 && !ignoredPaths.has(pathOf(f)); }).length;
+        if (tooLarge > 0) parts.push(fmt(i18n.tooLarge, tooLarge));
+        if (empty > 0) parts.push(fmt(i18n.emptySkipped, empty));
+        el.innerText = parts.join(' — ');
+    }
+
+    // ===== Progress helpers =====
+    function setStatus(t) { $('progressStatus').innerText = t; }
+    function setCount(t) { $('fileCountText').innerText = t; }
+    function setProgress(p) { $('progressBar').style.width = p + '%'; $('progressText').innerText = p + '%'; }
+
+    function setBusy(b) {
+        busy = b;
+        $('uploadBtn').disabled = b;
+        $('uploadBtn').innerText = b ? i18n.inProgress : i18n.submit;
+    }
+
+    function resetProgress() {
+        $('progressContainer').classList.add('hidden');
+        $('planSummary').classList.add('hidden');
+        setProgress(0);
+        setStatus('');
+        setCount('');
+    }
+
+    const tick = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
+
+    // ===== Smart upload: compare with GitHub =====
+    async function fetchPlan(branch) {
+        const url = '/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(repoName) + '/upload-plan'
+            + (branch ? '?branch=' + encodeURIComponent(branch) : '');
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+        if (!res.ok) {
+            let message = i18n.planFailed;
+            try { message = (await res.json()).error || message; } catch (e) { /* ignore */ }
+            throw new Error(message);
+        }
+        return res.json();
+    }
+
+    // نفس طريقة Git في حساب الـ SHA: sha1("blob <size>\0" + content)
+    async function sha1Blob(file) {
+        if (!window.crypto || !window.crypto.subtle) return null;     // محتاج localhost أو HTTPS
+        const body = new Uint8Array(await file.arrayBuffer());
+        const header = new TextEncoder().encode('blob ' + file.size + '\0');
+        const data = new Uint8Array(header.length + body.length);
+        data.set(header, 0);
+        data.set(body, header.length);
+        const digest = await crypto.subtle.digest('SHA-1', data);
+        return Array.from(new Uint8Array(digest)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    async function computeChanges(candidates, plan) {
+        const remote = plan.files || {};
+        const changed = [];
+        let added = 0, modified = 0, unchanged = 0;
+
+        for (let i = 0; i < candidates.length; i++) {
+            const c = candidates[i];
+            const r = remote[c.path];
+
+            if (!r) {
+                changed.push(c); added++;
+            } else if (r.size !== c.file.size) {
+                changed.push(c); modified++;                 // الحجم مختلف: مفيش داعي نحسب الـ SHA
+            } else {
+                const sha = await sha1Blob(c.file);
+                if (sha && sha === r.sha) unchanged++;
+                else { changed.push(c); modified++; }
+            }
+
+            if (i % 10 === 0 || i === candidates.length - 1) {
+                setCount(fmt(i18n.analyzingCount, i + 1, candidates.length));
+                await tick();
+            }
+        }
+        return { changed: changed, added: added, modified: modified, unchanged: unchanged };
+    }
+
+    // ===== Secrets scan =====
+    async function scanFiles(items) {
+        const findings = [];
+        for (let i = 0; i < items.length; i++) {
+            const result = await SecretScanner.scanFile(items[i].file, items[i].path);
+            result.forEach(function (f) { findings.push(f); });
+            if (i % 10 === 0 || i === items.length - 1) {
+                setCount(fmt(i18n.scanning, i + 1, items.length));
+                await tick();
+            }
+        }
+        return findings;
+    }
+
+    function askSecretsDecision(findings) {
+        return new Promise(function (resolve) {
+            const dlg = $('secretsDialog');
+            const list = $('secretsList');
+            list.innerHTML = '';
+
+            const byFile = new Map();
+            findings.forEach(function (f) {
+                if (!byFile.has(f.path)) byFile.set(f.path, []);
+                byFile.get(f.path).push(f);
+            });
+
+            byFile.forEach(function (items, path) {
+                const li = document.createElement('li');
+                const strong = document.createElement('strong');
+                strong.textContent = path;
+                strong.style.direction = 'ltr';
+                strong.style.unicodeBidi = 'embed';
+                li.appendChild(strong);
+
+                const ul = document.createElement('ul');
+                items.forEach(function (f) {
+                    const sub = document.createElement('li');
+                    const where = f.line > 0 ? fmt(i18n.secretsLine, f.line) : i18n.secretsWholeFile;
+                    sub.appendChild(document.createTextNode(where + ' — ' + f.type));
+                    if (f.preview) {
+                        sub.appendChild(document.createTextNode(' '));
+                        const code = document.createElement('code');
+                        code.textContent = f.preview;
+                        sub.appendChild(code);
+                    }
+                    ul.appendChild(sub);
+                });
+                li.appendChild(ul);
+                list.appendChild(li);
+            });
+
+            $('secretsIntro').textContent = fmt(i18n.secretsIntro, byFile.size, findings.length);
+            $('secretsPublic').textContent = i18n.secretsPublic;
+            $('secretsPublic').classList.toggle('hidden', isPrivateRepo);
+            $('secretsHint').textContent = i18n.secretsHint;
+
+            let settled = false;
+            function finish(decision) {
+                if (settled) return;
+                settled = true;
+                dlg.removeEventListener('click', onClick);
+                dlg.removeEventListener('close', onClose);
+                if (dlg.open) dlg.close();
+                resolve(decision);
+            }
+            function onClick(e) {
+                const btn = e.target.closest('[data-decision]');
+                if (btn) finish(btn.getAttribute('data-decision'));
+            }
+            function onClose() { finish('cancel'); }
+
+            dlg.addEventListener('click', onClick);
+            dlg.addEventListener('close', onClose);
+            dlg.showModal();
+        });
+    }
+
+    // ===== Send =====
+    async function sendUpload(items, commitMessage, branch, force) {
+        const uploadId = 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const base = '/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(repoName);
+        let serverStarted = false;
+        let finished = false;
+
+        const es = new EventSource(base + '/upload-progress/' + uploadId);
+        es.addEventListener('progress', function (event) {
+            serverStarted = true;
+            const data = JSON.parse(event.data);
+            setProgress(data.percentage);
+            setCount(fmt(i18n.filesDone, data.current, data.total));
+            setStatus(i18n.uploading);
+        });
+        es.addEventListener('complete', function () { finished = true; es.close(); });
+          es.addEventListener('error', function (event) {
+              finished = true;
+              es.close();
+              try {
+                  const data = JSON.parse(event.data);
+                  if (data && data.messageKey) setStatus(data.messageKey);
+              } catch (e) {}
+          });
+        es.onerror = function () {
+            es.close();
+            if (!finished) setStatus(i18n.connectionLost);
+        };
+
+        // نستنى الـ SSE يتفتح (بحد أقصى ثانية ونص) قبل ما نبعت الملفات
+        await new Promise(function (res) { es.onopen = res; setTimeout(res, 1500); });
+
+        const formData = new FormData();
+        items.forEach(function (it) {
+            formData.append('files', it.file);
+            formData.append('paths', it.path);
+        });
+        formData.append('commitMessage', commitMessage);
+        formData.append('branch', branch);
+        formData.append('uploadId', uploadId);
+        formData.append('forceUpload', force);
+
+        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+        try {
+            await new Promise(function (resolve, reject) {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', base + '/upload-folder', true);
+                xhr.timeout = 600000;
+                xhr.setRequestHeader(csrfHeader, csrfToken);
+
+                xhr.upload.onprogress = function (e) {
+                    if (e.lengthComputable && !serverStarted) {
+                        setStatus(fmt(i18n.sending, Math.round(e.loaded * 100 / e.total)));
+                    }
+                };
+                xhr.onload = function () {
+                    if (xhr.status === 200) { resolve(); return; }
+                    let message = i18n.connectFailed;
+                    try { message = JSON.parse(xhr.responseText).error || i18n.serverError; } catch (e) { /* keep default */ }
+                    reject(new Error(message));
+                };
+                xhr.onerror = function () { reject(new Error(i18n.networkLost)); };
+                xhr.ontimeout = function () { reject(new Error(i18n.networkLost)); };
+                xhr.send(formData);
+            });
+        } finally {
+            finished = true;
+            es.close();
+        }
+    }
+
+    // ===== Custom .gitignore Management =====
+    const customIgnoreRules = new Set();
+
+    async function addCustomIgnoreRule(pattern) {
+        if (!pattern) {
+            const input = $('customIgnoreInput');
+            pattern = input ? input.value.trim() : '';
+            if (input) input.value = '';
+        }
+        pattern = (pattern || '').trim();
+        if (!pattern) return;
+
+        if (customIgnoreRules.has(pattern)) {
+            if (window.Toast) Toast.info(i18n.gitignorePatternAdded || (document.documentElement.lang === 'ar' ? 'النمط مضاف بالفعل' : 'Pattern already added'));
+            return;
+        }
+
+        customIgnoreRules.add(pattern);
+        renderCustomIgnoreTags();
+        await syncCustomGitignore([pattern]);
+    }
+
+    async function removeCustomIgnoreRule(pattern) {
+        customIgnoreRules.delete(pattern);
+        renderCustomIgnoreTags();
+
+        let rootDir = '';
+        if (allFiles.length > 0) {
+            const firstPath = pathOf(allFiles[0]);
+            const slashIdx = firstPath.indexOf('/');
+            if (slashIdx !== -1) rootDir = firstPath.slice(0, slashIdx + 1);
+        }
+        const gitignorePath = rootDir + '.gitignore';
+        const existingIdx = allFiles.findIndex(function (f) { return pathOf(f) === gitignorePath; });
+        if (existingIdx !== -1) {
+            const currentContent = await allFiles[existingIdx].text();
+            const lines = currentContent.split(/\r?\n/);
+            const filtered = lines.filter(function (l) {
+                const t = l.trim();
+                return t !== pattern && t.replace(/^\//, '') !== pattern.replace(/^\//, '');
+            });
+            const newContent = filtered.join('\n');
+            const blob = new Blob([newContent], { type: 'text/plain' });
+            const newFile = new File([blob], '.gitignore', { type: 'text/plain' });
+            if (rootDir) {
+                Object.defineProperty(newFile, 'webkitRelativePath', { value: gitignorePath, writable: false });
+            }
+            allFiles[existingIdx] = newFile;
+        }
+
+        ignoredPaths.clear();
+        allFiles.forEach(function (f) {
+            const p = pathOf(f);
+            if (isHardIgnored(p) || isAutoIgnored(p)) ignoredPaths.add(p);
+        });
+
+        if ($('respectGitignore').checked) {
+            const matcher = await GitIgnore.build(allFiles, pathOf);
+            if (matcher.hasRules) {
+                allFiles.forEach(function (file) {
+                    const p = pathOf(file);
+                    if (!ignoredPaths.has(p) && matcher.ignores(p)) {
+                        ignoredPaths.add(p);
+                    }
+                });
+            }
+        }
+
+        customIgnoreRules.forEach(function (r) {
+            allFiles.forEach(function (f) {
+                const p = pathOf(f);
+                if (p === r || f.name === r) ignoredPaths.add(p);
+            });
+        });
+
+        render();
+        if (window.Toast) {
+            Toast.info(i18n.gitignorePatternRemoved ? fmt(i18n.gitignorePatternRemoved, pattern) : (document.documentElement.lang === 'ar' ? ('تمت إزالة ' + pattern + ' من .gitignore') : ('Removed ' + pattern + ' from .gitignore')));
+        }
+    }
+
+    function renderCustomIgnoreTags() {
+        const container = $('customIgnoreTagsList');
+        if (!container) return;
+        container.innerHTML = '';
+        customIgnoreRules.forEach(function (pattern) {
+            const span = document.createElement('span');
+            span.className = 'active-ignore-tag';
+            span.textContent = pattern + ' ';
+            const x = document.createElement('span');
+            x.className = 'remove-tag';
+            x.textContent = '×';
+            x.title = i18n.remove || (document.documentElement.lang === 'ar' ? 'إزالة' : 'Remove');
+            x.onclick = async function () { await removeCustomIgnoreRule(pattern); };
+            span.appendChild(x);
+            container.appendChild(span);
+        });
+    }
+
+    async function syncCustomGitignore(patternsToIgnore) {
+        if (!patternsToIgnore || patternsToIgnore.length === 0) return;
+        if (allFiles.length === 0) return;
+
+        let rootDir = '';
+        const firstPath = pathOf(allFiles[0]);
+        const slashIdx = firstPath.indexOf('/');
+        if (slashIdx !== -1) {
+            rootDir = firstPath.slice(0, slashIdx + 1);
+        }
+        const gitignorePath = rootDir + '.gitignore';
+
+        let existingIdx = allFiles.findIndex(function (f) { return pathOf(f) === gitignorePath; });
+        let currentContent = '';
+        let existingLines = [];
+        let isFromRemote = false;
+
+        if (existingIdx !== -1) {
+            currentContent = await allFiles[existingIdx].text();
+            existingLines = currentContent.split(/\r?\n/).map(function (l) { return l.trim(); });
+        } else {
+            const b = $('folderBranch') ? $('folderBranch').value : '';
+            const remoteContent = await fetchRemoteGitignore(b);
+            if (remoteContent) {
+                currentContent = remoteContent;
+                existingLines = currentContent.split(/\r?\n/).map(function (l) { return l.trim(); });
+                isFromRemote = true;
+                if (window.Toast) {
+                    Toast.info(i18n.gitignoreRemoteImported || (document.documentElement.lang === 'ar' ? 'تم جلب .gitignore من GitHub وتحديث قواعد الاستثناء' : 'Imported .gitignore from GitHub and updated rules'));
+                }
+            }
+        }
+
+        let addedCount = 0;
+        let newLines = [];
+
+        patternsToIgnore.forEach(function (pattern) {
+            const cleanPattern = pattern.trim();
+            if (!cleanPattern) return;
+
+            const alreadyExists = existingLines.some(function (line) {
+                if (!line || line.startsWith('#')) return false;
+                return line === cleanPattern || line.replace(/^\//, '') === cleanPattern.replace(/^\//, '');
+            });
+
+            if (!alreadyExists) {
+                newLines.push(cleanPattern);
+                existingLines.push(cleanPattern);
+                addedCount++;
+            }
+        });
+
+        if (addedCount > 0 || existingIdx === -1) {
+            let finalContent = currentContent;
+            if (finalContent && !finalContent.endsWith('\n')) {
+                finalContent += '\n';
+            }
+            if (newLines.length > 0) {
+                const header = (existingIdx === -1 && !isFromRemote) ? '# Created by GitHub Manager\n' : '\n# Added by GitHub Manager\n';
+                finalContent += header + newLines.join('\n') + '\n';
+            }
+
+            const blob = new Blob([finalContent], { type: 'text/plain' });
+            const newGitignoreFile = new File([blob], '.gitignore', { type: 'text/plain' });
+            if (rootDir) {
+                Object.defineProperty(newGitignoreFile, 'webkitRelativePath', {
+                    value: gitignorePath,
+                    writable: false
+                });
+            }
+
+            if (existingIdx !== -1) {
+                allFiles[existingIdx] = newGitignoreFile;
+            } else {
+                allFiles.push(newGitignoreFile);
+                const parts = gitignorePath.split('/');
+                let current = fileTree;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    const part = parts[i];
+                    if (!current[part]) {
+                        current[part] = { _isDir: true, _children: {}, _path: parts.slice(0, i + 1).join('/') };
+                    }
+                    current = current[part]._children;
+                }
+                current[parts[parts.length - 1]] = { _isDir: false, _path: gitignorePath, _size: newGitignoreFile.size };
+            }
+
+            const matcher = await GitIgnore.build(allFiles, pathOf);
+            patternsToIgnore.forEach(function (p) {
+                allFiles.forEach(function (file) {
+                    const path = pathOf(file);
+                    const name = file.name;
+                    if (path !== gitignorePath && (matcher.ignores(path) || name === p || path === p)) {
+                        ignoredPaths.add(path);
+                    }
+                });
+            });
+
+            render();
+            if (window.Toast) {
+                const pDesc = patternsToIgnore.join(', ');
+                Toast.success(i18n.gitignoreRuleSuccess ? fmt(i18n.gitignoreRuleSuccess, pDesc) : (document.documentElement.lang === 'ar' ? ('تم استثناء ' + pDesc + ' وإضافته إلى ملف .gitignore بنجاح') : ('Added ' + pDesc + ' to .gitignore and excluded')));
+            }
+        } else {
+            patternsToIgnore.forEach(function (p) {
+                allFiles.forEach(function (f) {
+                    if (pathOf(f) === p || f.name === p) ignoredPaths.add(pathOf(f));
+                });
+            });
+            render();
+            if (window.Toast) {
+                Toast.info(i18n.gitignoreRuleExists || (document.documentElement.lang === 'ar' ? 'القاعدة موجودة بالفعل في .gitignore وتم استبعاد الملف' : 'Pattern already exists in .gitignore; file is excluded'));
+            }
+        }
+    }
+
+    function finishUpload(total) {
+        setProgress(100);
+        setStatus(i18n.completeStatus);
+        setCount(fmt(i18n.completeCount, total));
+        if (window.Toast) Toast.success(fmt(i18n.completeCount, total));
+        setTimeout(function () { window.location.reload(); }, 1500);
+    }
+
+    // ===== Main flow =====
+    // ===== Custom confirm dialog (no native alert/confirm) =====
+    function showConfirm(message) {
+        return new Promise(function (resolve) {
+            if (window.Toast && Toast.confirm) {
+                Toast.confirm(message, function (ok) { resolve(ok); });
+                return;
+            }
+            // Fallback: simple modal overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:var(--card-bg,#1e2027);border:1px solid var(--card-border,#30363d);border-radius:12px;padding:28px 32px;max-width:420px;width:90%;font-family:inherit;';
+            const msg = document.createElement('p');
+            msg.style.cssText = 'margin:0 0 20px;font-size:0.97em;line-height:1.5;color:var(--text,#e6edf3);white-space:pre-line;';
+            msg.textContent = message;
+            const btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+            const cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.style.cssText = 'padding:7px 20px;border-radius:8px;border:1px solid var(--card-border,#30363d);background:transparent;color:var(--text,#e6edf3);cursor:pointer;font-size:0.9em;';
+            cancel.textContent = document.documentElement.lang === 'ar' ? 'إلغاء' : 'Cancel';
+            const ok = document.createElement('button');
+            ok.type = 'button';
+            ok.style.cssText = 'padding:7px 20px;border-radius:8px;border:none;background:#cf222e;color:#fff;cursor:pointer;font-size:0.9em;font-weight:600;';
+            ok.textContent = document.documentElement.lang === 'ar' ? 'تأكيد' : 'Confirm';
+            cancel.onclick = function () { document.body.removeChild(overlay); resolve(false); };
+            ok.onclick = function () { document.body.removeChild(overlay); resolve(true); };
+            btnRow.appendChild(cancel);
+            btnRow.appendChild(ok);
+            box.appendChild(msg);
+            box.appendChild(btnRow);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+        });
+    }
+
+    function toastError(message) {
+        if (window.Toast) { Toast.error(message); return; }
+        // Fallback if Toast not loaded yet
+        const d = document.createElement('div');
+        d.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#cf222e;color:#fff;padding:12px 24px;border-radius:10px;font-size:0.95em;z-index:9999;max-width:90vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.35);';
+        d.textContent = message;
+        document.body.appendChild(d);
+        setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 4000);
+    }
+
+    async function uploadFolder() {
+        if (busy) return;
+
+        if (allFiles.length === 0) { toastError(i18n.errNoFiles); return; }
+
+        const commitMessage = folderCommitMessage.value.trim();
+        if (!commitMessage) { toastError(i18n.errNoCommit); return; }
+
+        const branch = folderBranch.value;
+        const force = forceUploadCheck.checked;
+
+        if (customIgnoreRules.size > 0) {
+            await syncCustomGitignore(Array.from(customIgnoreRules));
+        }
+
+        let items = getCandidates();
+        if (items.length === 0) { toastError(i18n.errAllIgnored); return; }
+
+        if (force && !(await showConfirm(i18n.forceConfirm))) return;
+
+        setBusy(true);
+        $('progressContainer').classList.remove('hidden');
+        $('planSummary').classList.add('hidden');
+        setProgress(0);
+        setCount('');
+
+        let reloading = false;
+        try {
+            // 1) قارن مع GitHub وارفع المتغير بس (إلا في وضع Force)
+            if (force) {
+                setStatus(i18n.forceAll);
+            } else {
+                setStatus(i18n.analyzing);
+                const plan = await fetchPlan(branch);
+                const diff = await computeChanges(items, plan);
+
+                $('planSummary').innerText = fmt(i18n.planSummary, diff.added, diff.modified, diff.unchanged);
+                $('planSummary').classList.remove('hidden');
+
+                items = diff.changed;
+                if (items.length === 0) {
+                    setStatus(i18n.noChanges);
+                    setCount('');
+                    return;
+                }
+            }
+
+            // 2) افحص الأسرار في الملفات اللي هتترفع بس
+            setStatus(i18n.scanning.split(':')[0]);
+            const findings = await scanFiles(items);
+            if (findings.length > 0) {
+                const decision = await askSecretsDecision(findings);
+                if (decision === 'cancel') { resetProgress(); return; }
+                if (decision === 'exclude') {
+                    const flagged = new Set(findings.map(function (f) { return f.path; }));
+                    flagged.forEach(function (p) { ignoredPaths.add(p); });
+                    items = items.filter(function (it) { return !flagged.has(it.path); });
+                    render();
+                    if (items.length === 0) { resetProgress(); toastError(i18n.errAllIgnored); return; }
+                }
+            }
+
+            // 3) ارفع
+            setStatus(i18n.uploading);
+            setCount('');
+            await sendUpload(items, commitMessage, branch, force);
+
+            reloading = true;
+            finishUpload(items.length);
+
+        } catch (err) {
+            toastError(i18n.failed + ' ' + (err && err.message ? err.message : i18n.unknownError));
+            resetProgress();
+        } finally {
+            if (!reloading) setBusy(false);
+        }
+    }
+
+    renderReadme();
+    render();
+
+    const customInputEl = $('customIgnoreInput');
+    if (customInputEl) {
+        customInputEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomIgnoreRule();
+            }
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.language}"
+      th:dir="${#locale.language == 'ar' ? 'rtl' : 'ltr'}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{new_repo.title}">مستودع جديد</title>
+
+    <!-- ✅ الأيقونة الديناميكية (تتغير حسب الثيم) -->
+    <link rel="icon" type="image/png" id="dynamic-favicon" th:href="@{/favicon_light.png?v=1}">
+    <link rel="stylesheet" th:href="@{/css/toast.css}">
+
+    <style>
+        /* 1. متغيرات الألوان للوضعين (Light & Dark) */
+        :root {
+            --bg-color: #f6f8fa; --text-color: #24292e; --nav-bg: #ffffff;
+            --card-bg: #ffffff; --card-border: #e1e4e8; --text-muted: #586069;
+            --btn-primary: #2ea44f; --btn-primary-hover: #2c974b; --btn-danger: #d73a49;
+            --btn-outline-border: #d1d5da; --btn-outline-hover: #f3f4f6;
+            --input-bg: #ffffff; --input-border: #ccc;
+            --warning-bg: #fff3cd; --warning-text: #856404; --warning-border: #ffeeba;
+            --error-bg: #ffe6e6; --error-text: #d73a49; --error-border: #d73a49;
+            --overlay-bg: rgba(255, 255, 255, 0.85);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0d1117; --text-color: #c9d1d9; --nav-bg: #161b22;
+            --card-bg: #161b22; --card-border: #30363d; --text-muted: #8b949e;
+            --btn-primary: #238636; --btn-primary-hover: #2ea043; --btn-danger: #da3633;
+            --btn-outline-border: #30363d; --btn-outline-hover: #21262d;
+            --input-bg: #0d1117; --input-border: #30363d;
+            --warning-bg: #3b2e00; --warning-text: #ffda6a; --warning-border: #664d03;
+            --error-bg: #4a1515; --error-text: #ff7b72; --error-border: #da3633;
+            --overlay-bg: rgba(13, 17, 23, 0.85);
+        }
+
+        /* 2. التنسيقات الأساسية */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color); color: var(--text-color);
+            margin: 0; padding: 0; transition: background-color 0.3s, color 0.3s;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+
+        /* 3. شريط التنقل (NavBar) */
+        .navbar { display: flex; justify-content: space-between; align-items: center; background-color: var(--nav-bg); padding: 10px 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom: 1px solid var(--card-border); }
+        .navbar-brand { font-size: 1.5em; font-weight: bold; color: var(--text-color); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+        .navbar-logo { height: 32px; width: 32px; border-radius: 5px; transition: 0.3s; }
+        .nav-links { display: flex; gap: 15px; align-items: center; }
+
+        /* 4. تنسيقات الأزرار */
+        .btn { padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; font-size: 0.9em; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s; }
+        .btn-primary { background-color: var(--btn-primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--btn-primary-hover); }
+        .btn-outline { border: 1px solid var(--btn-outline-border); color: var(--text-color); background: transparent; }
+        .btn-outline:hover { background: var(--btn-outline-hover); }
+
+        /* 5. تصميم النموذج (Form) */
+        .main-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .form-container {
+            position: relative; background: var(--card-bg); padding: 30px; border-radius: 8px;
+            border: 1px solid var(--card-border); box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 100%; max-width: 500px; overflow: hidden;
+        }
+        .form-container h2 { margin-top: 0; margin-bottom: 20px; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        .field-error {
+            color: var(--btn-danger);
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+        .field-error::before {
+            content: "⚠️ ";
+        }
+        .is-invalid {
+            border-color: var(--btn-danger) !important;
+        }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+
+        input[type="text"], textarea {
+            width: 100%; padding: 10px; background-color: var(--input-bg); color: var(--text-color);
+            border: 1px solid var(--input-border); border-radius: 5px; box-sizing: border-box;
+            font-family: inherit; transition: 0.3s;
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none; border-color: #0366d6; box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.3);
+        }
+
+        .checkbox-group { display: flex; align-items: center; gap: 8px; }
+        .checkbox-group input { width: auto; margin: 0; }
+
+        .submit-btn {
+            width: 100%; padding: 12px; background-color: var(--btn-primary); color: white;
+            border: none; border-radius: 5px; font-size: 16px; font-weight: bold;
+            cursor: pointer; margin-top: 15px; transition: background-color 0.2s;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .submit-btn:hover:not(:disabled) { background-color: var(--btn-primary-hover); }
+        .submit-btn:disabled { background-color: var(--text-muted); cursor: not-allowed; }
+
+        /* ✅ تصميم التنبيهات العائمة (Toast) */
+        .toast-container {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+            width: 90%; max-width: 450px;
+        }
+
+        .modern-alert {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; border-radius: 8px;
+            background-color: var(--error-bg); color: var(--error-text);
+            border: 1px solid var(--error-border);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: bold;
+        }
+
+        .modern-alert .alert-content { display: flex; align-items: center; gap: 12px; }
+        .modern-alert .alert-icon { font-size: 1.5em; }
+
+        .close-btn {
+            background: transparent; border: none; color: inherit;
+            font-size: 1.5em; cursor: pointer; opacity: 0.6;
+            transition: 0.2s; padding: 0 5px; line-height: 1;
+        }
+        .close-btn:hover { opacity: 1; transform: scale(1.1); }
+
+        /* ✅ شاشة التحميل */
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--overlay-bg); backdrop-filter: blur(4px);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10; border-radius: 8px; animation: fadeIn 0.3s ease-in-out;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid var(--card-border);
+            border-top: 5px solid var(--btn-primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        .loading-text { font-size: 1.2em; font-weight: bold; color: var(--btn-primary); text-align: center; }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+
+    <script>
+        // تحميل الثيم فوراً لمنع وميض الشاشة
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+    </script>
+</head>
+<body>
+
+<!-- حاوية التنبيهات العائمة -->
+<div class="toast-container" id="toastContainer">
+    <div th:if="${errorMessage}" class="modern-alert" id="errorAlert">
+        <div class="alert-content">
+            <span th:text="${errorMessage}"></span>
+        </div>
+        <button class="close-btn" onclick="closeAlert()" title="إغلاق">&times;</button>
+    </div>
+</div>
+
+<nav class="navbar">
+    <a th:href="@{/}" class="navbar-brand">
+        <!-- ✅ شعار شريط التنقل الديناميكي -->
+        <img th:src="@{/favicon_light.png?v=1}" alt="Logo" class="navbar-logo" id="navbar-logo">
+        <span>GitHub Manager</span>
+    </a>
+    <div class="nav-links">
+        <a th:href="@{/repos/new(lang='ar')}" class="btn btn-outline" th:if="${#locale.language != 'ar'}">العربية</a>
+        <a th:href="@{/repos/new(lang='en')}" class="btn btn-outline" th:if="${#locale.language == 'ar'}">English</a>
+        <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn"><span id="themeIcon">🌙</span></button>
+        <a th:href="@{/}" class="btn btn-outline" th:text="#{nav.back}">العودة للرئيسية</a>
+    </div>
+</nav>
+
+<div class="main-content">
+    <div class="form-container" id="formWrapper">
+
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="spinner"></div>
+            <div class="loading-text" th:text="#{new_repo.please_wait}">جاري إنشاء المستودع...</div>
+        </div>
+
+        <h2 th:text="#{new_repo.title}">إنشاء مستودع جديد</h2>
+
+        <form id="createRepoForm" th:action="@{/repos/new}" th:object="${createRepoForm}" method="post" onsubmit="handleFormSubmit()">
+            <div class="form-group">
+                <label for="repoName" th:text="#{new_repo.name_label}">اسم المستودع (إجباري):</label>
+                <input type="text" id="repoName" th:field="*{repoName}" th:classappend="${#fields.hasErrors('repoName')} ? 'is-invalid' : ''" th:placeholder="#{new_repo.name_placeholder}">
+                <div class="field-error" th:if="${#fields.hasErrors('repoName')}" th:errors="*{repoName}"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="description" th:text="#{new_repo.desc_label}">الوصف (اختياري):</label>
+                <textarea id="description" th:field="*{description}" th:classappend="${#fields.hasErrors('description')} ? 'is-invalid' : ''" rows="3" maxlength="350" th:placeholder="#{new_repo.desc_placeholder}"></textarea>
+                <div class="field-error" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></div>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="isPrivate" th:field="*{isPrivate}">
+                <label for="isPrivate" style="margin-bottom: 0;" th:text="#{new_repo.private_label}">مستودع خاص (Private)</label>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                <span id="submitText" th:text="#{new_repo.submit}">إنشاء المستودع</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    // دالة تحديث الأيقونات بناءً على الثيم
+    function updateAssets(theme) {
+        const favicon = document.getElementById('dynamic-favicon');
+        const navbarLogo = document.getElementById('navbar-logo');
+        const themeIcon = document.getElementById('themeIcon');
+
+        if (theme === 'dark') {
+            if (favicon) favicon.href = /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1';
+            if (navbarLogo) navbarLogo.src = /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1';
+            if (themeIcon) themeIcon.innerText = '☀️';
+        } else {
+            if (favicon) favicon.href = /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+            if (navbarLogo) navbarLogo.src = /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+            if (themeIcon) themeIcon.innerText = '🌙';
+        }
+    }
+
+    // تغيير الثيم
+    function toggleTheme() {
+        const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+
+        // تحديث الأيقونات فوراً
+        updateAssets(newTheme);
+    }
+
+    // استدعاء أولي عند تحميل الصفحة
+    updateAssets(document.documentElement.getAttribute('data-theme'));
+
+    // دالة إغلاق التنبيه
+    function closeAlert() {
+        const alert = document.getElementById('errorAlert');
+        if (alert) {
+            alert.style.animation = 'slideDown 0.3s reverse forwards';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 300);
+        }
+    }
+
+    // إخفاء التنبيه تلقائياً بعد 8 ثوانٍ
+    window.addEventListener('DOMContentLoaded', () => {
+        const alert = document.getElementById('errorAlert');
+        if (alert) {
+            setTimeout(() => {
+                if (alert.style.display !== 'none') {
+                    closeAlert();
+                }
+            }, 8000);
+        }
+    });
+
+    // ✅ التعامل مع إرسال النموذج
+    function handleFormSubmit() {
+        document.getElementById('submitBtn').disabled = true;
+        const creatingText = /*[[#{new_repo.creating}]]*/ 'جاري الإنشاء...';
+        document.getElementById('submitText').innerText = creatingText;
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        return true;
+    }
+
+    // إعادة تعيين الصفحة عند الرجوع للخلف
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            document.getElementById('submitBtn').disabled = false;
+            const defaultText = /*[[#{new_repo.submit}]]*/ 'إنشاء المستودع';
+            document.getElementById('submitText').innerText = defaultText;
+        }
+    });
+</script>
+<script th:src="@{/js/toast.js}"></script>
+</body>
+</html>

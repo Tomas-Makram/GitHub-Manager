@@ -1,0 +1,595 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.language}"
+      th:dir="${#locale.language == 'ar' ? 'rtl' : 'ltr'}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GitHub Manager</title>
+
+    <link rel="icon" type="image/png" id="dynamic-favicon" th:href="@{/favicon_light.png?v=1}">
+
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="stylesheet" th:href="@{/css/toast.css}">
+
+    <style>
+        :root {
+            --bg-color: #f6f8fa;
+            --text-color: #24292e;
+            --nav-bg: #ffffff;
+            --card-bg: #ffffff;
+            --card-border: #e1e4e8;
+            --text-muted: #586069;
+            --btn-primary: #2ea44f;
+            --btn-primary-hover: #2c974b;
+            --btn-danger: #d73a49;
+            --btn-danger-hover: #b62a38;
+            --btn-outline-border: #d1d5da;
+            --btn-outline-hover: #f3f4f6;
+            --link-color: #0366d6;
+            --input-bg: #ffffff;
+            --input-border: #d1d5da;
+            --danger-bg: #fff5f5;
+            --ok-bg: #dafbe1;
+            --ok-text: #116329;
+            --selected-border: #0366d6;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --nav-bg: #161b22;
+            --card-bg: #161b22;
+            --card-border: #30363d;
+            --text-muted: #8b949e;
+            --btn-primary: #238636;
+            --btn-primary-hover: #2ea043;
+            --btn-danger: #da3633;
+            --btn-danger-hover: #f85149;
+            --btn-outline-border: #30363d;
+            --btn-outline-hover: #21262d;
+            --link-color: #58a6ff;
+            --input-bg: #0d1117;
+            --input-border: #30363d;
+            --danger-bg: #1c1214;
+            --ok-bg: #12261e;
+            --ok-text: #7ee787;
+            --selected-border: #58a6ff;
+        }
+
+        * { box-sizing: border-box; }
+        .hidden { display: none !important; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* NavBar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--nav-bg);
+            padding: 10px 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-bottom: 1px solid var(--card-border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .navbar-brand { font-size: 1.5em; font-weight: bold; color: var(--text-color); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+        .navbar-logo { height: 32px; width: 32px; border-radius: 5px; transition: 0.3s; }
+        .nav-links { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 15px; border-radius: 5px; text-decoration: none;
+            font-weight: bold; cursor: pointer; border: 1px solid transparent; font-size: 0.9em; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 5px; transition: 0.2s;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background-color: var(--btn-primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--btn-primary-hover); }
+        .btn-danger { background-color: var(--btn-danger); color: white; }
+        .btn-danger:hover:not(:disabled) { background-color: var(--btn-danger-hover); }
+        .btn-outline { border-color: var(--btn-outline-border); color: var(--text-color); background: transparent; }
+        .btn-outline:hover:not(:disabled) { background: var(--btn-outline-hover); }
+        .btn-outline.active { border-color: var(--selected-border); color: var(--link-color); }
+
+        /* Repos grid */
+        .container { padding: 20px 30px; }
+        .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .repo-card {
+            position: relative;
+            background: var(--card-bg); padding: 20px; border-radius: 8px;
+            border: 1px solid var(--card-border); box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.2s, background-color 0.3s, border-color 0.2s;
+        }
+        .repo-card:hover { transform: translateY(-3px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .repo-name { font-size: 1.2em; font-weight: bold; color: var(--link-color); text-decoration: none; display: block; margin-bottom: 10px; word-break: break-all; }
+        .repo-desc { color: var(--text-muted); font-size: 0.9em; margin-bottom: 15px; height: 40px; overflow: hidden; }
+        .badge { font-size: 0.8em; padding: 3px 8px; border-radius: 10px; background: var(--card-border); color: var(--text-color); }
+        .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* Select mode */
+        .repo-check {
+            display: none;
+            position: absolute; top: 14px; inset-inline-end: 14px;
+            width: 20px; height: 20px; cursor: pointer;
+        }
+        .repo-check:disabled { cursor: not-allowed; opacity: 0.35; }
+        .select-mode .repo-check { display: block; }
+        .select-mode .repo-name { padding-inline-end: 28px; }
+        .select-mode .repo-card { cursor: pointer; }
+        .select-mode .repo-card.selected { border-color: var(--selected-border); box-shadow: 0 0 0 2px var(--selected-border); }
+        .select-mode .repo-card.not-allowed { cursor: not-allowed; opacity: 0.6; }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+            margin: 0 0 18px;
+        }
+        .form-control {
+            padding: 8px 12px; background: var(--input-bg); color: var(--text-color);
+            border: 1px solid var(--input-border); border-radius: 5px; font-family: inherit; font-size: 0.9em;
+        }
+        .form-control:focus { outline: none; border-color: var(--link-color); box-shadow: 0 0 0 3px rgba(3,102,214,0.25); }
+        .toolbar .search { flex: 1; min-width: 200px; }
+
+        .bulk-bar {
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+            padding: 12px 16px; margin-bottom: 18px;
+            background: var(--card-bg); border: 1px solid var(--selected-border); border-radius: 8px;
+            position: sticky; top: 0; z-index: 30;
+        }
+        .bulk-bar label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; cursor: pointer; }
+        .selected-count { font-weight: bold; font-size: 0.9em; }
+        .bulk-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-inline-start: auto; }
+
+        .alert {
+            background: var(--danger-bg); color: var(--btn-danger); border: 1px solid var(--btn-danger);
+            padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: bold;
+        }
+
+        /* Dialog */
+        dialog {
+            border: 1px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-color);
+            padding: 0; width: calc(100% - 32px); max-width: 580px; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        }
+        dialog::backdrop { background: rgba(1,4,9,0.6); }
+        .dialog-body { padding: 22px; }
+        .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+        .dialog-list {
+            list-style: none; margin: 12px 0 0; padding: 0; max-height: 220px; overflow: auto;
+            border: 1px solid var(--card-border); border-radius: 8px; font-size: 0.88em;
+        }
+        .dialog-list li { padding: 8px 12px; border-bottom: 1px solid var(--card-border); word-break: break-all; }
+        .dialog-list li:last-child { border-bottom: none; }
+        .dialog-list li.ok { background: var(--ok-bg); color: var(--ok-text); }
+        .dialog-list li.fail { background: var(--danger-bg); color: var(--btn-danger); }
+        .phrase-code { background: var(--btn-outline-hover); padding: 2px 8px; border-radius: 6px; font-family: Consolas, monospace; user-select: all; }
+
+        @media (max-width: 720px) {
+            .navbar { padding: 10px 16px; }
+            .container { padding: 16px; }
+            .bulk-actions { margin-inline-start: 0; width: 100%; }
+        }
+    </style>
+
+    <script>
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+    </script>
+</head>
+<body>
+
+<nav class="navbar">
+    <a th:href="@{/}" class="navbar-brand">
+        <img th:src="@{/favicon_light.png?v=1}" alt="Logo" class="navbar-logo" id="navbar-logo">
+        <span>GitHub Manager</span>
+    </a>
+    <div class="nav-links">
+        <a th:href="@{/(lang='ar')}" class="btn btn-outline" th:if="${#locale.language != 'ar'}">العربية</a>
+        <a th:href="@{/(lang='en')}" class="btn btn-outline" th:if="${#locale.language == 'ar'}">English</a>
+
+        <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">
+            <span id="themeIcon">🌙</span>
+        </button>
+
+        <a th:href="@{/}" class="btn btn-outline" th:text="#{nav.home}">الرئيسية</a>
+        <a th:href="@{/repos/new}" class="btn btn-primary" th:text="#{nav.new_repo}">+ مستودع جديد</a>
+        <!-- زر Refresh without cache -->
+        <form th:action="@{/cache/refresh}" method="post" style="margin:0;">
+            <button type="submit" class="btn btn-outline">
+                ⟳ <span th:text="#{nav.cache_refresh}">Refresh</span>
+            </button>
+        </form>
+
+        <a th:href="@{/logout-confirm}" class="btn btn-danger" th:text="#{nav.logout}">تسجيل خروج</a>
+    </div>
+</nav>
+
+<!-- شريط التلميح -->
+<div style="background:var(--btn-outline-hover);border-bottom:1px solid var(--card-border);text-align:center;font-size:0.8em;color:var(--text-muted);padding:5px 20px;" th:text="#{nav.cache_refresh_home_hint}"></div>
+
+<div class="container" id="pageContainer">
+    <!-- بيانات المستخدم -->
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 30px; margin-top: 10px;">
+        <img th:src="${avatar}" alt="Avatar" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--card-border);">
+        <div>
+            <strong style="font-size: 1.5em;" th:text="${name}">User Name</strong><br>
+            <span style="color: var(--text-muted);" th:text="'@' + ${username}"></span>
+        </div>
+    </div>
+
+    <h2 th:text="#{home.title}">مستودعاتك (Repositories)</h2>
+
+    <div id="alertBox" class="alert hidden"></div>
+
+    <!-- شريط البحث والفلترة (بيظهر لو فيه مستودعات) -->
+    <div class="toolbar" th:if="${!repos.isEmpty()}">
+        <input type="search" id="searchInput" class="form-control search" th:placeholder="#{bulk.search_placeholder}">
+        <select id="filterSelect" class="form-control">
+            <option value="all" th:text="#{bulk.filter_all}">All</option>
+            <option value="public" th:text="#{bulk.filter_public}">Public</option>
+            <option value="private" th:text="#{bulk.filter_private}">Private</option>
+            <option value="forks" th:text="#{bulk.filter_forks}">Forks</option>
+            <option value="sources" th:text="#{bulk.filter_sources}">Sources</option>
+        </select>
+        <button type="button" id="selectModeBtn" class="btn btn-outline" th:text="#{bulk.select_mode}">Select multiple</button>
+    </div>
+
+    <!-- شريط العمليات الجماعية (بيظهر في وضع التحديد فقط) -->
+    <div id="bulkBar" class="bulk-bar hidden">
+        <label><input type="checkbox" id="selectAll"> <span th:text="#{bulk.select_all}">Select all</span></label>
+        <span id="selectedCount" class="selected-count"></span>
+        <div class="bulk-actions">
+            <button type="button" class="btn btn-outline" data-action="private" disabled th:text="#{bulk.make_private}">Make private</button>
+            <button type="button" class="btn btn-outline" data-action="public" disabled th:text="#{bulk.make_public}">Make public</button>
+            <button type="button" class="btn btn-danger" data-action="delete" disabled th:text="#{bulk.delete}">Delete</button>
+        </div>
+    </div>
+
+    <!-- شبكة عرض المستودعات -->
+    <div class="repo-grid" id="repoGrid" th:if="${!repos.isEmpty()}">
+        <div class="repo-card" th:each="repo : ${repos}"
+             th:classappend="${repo.permissions == null or !repo.permissions.admin} ? 'not-allowed' : ''"
+             th:attr="data-name=${#strings.toLowerCase(repo.full_name)},data-private=${repo.private},data-fork=${repo.fork}">
+
+            <input type="checkbox" class="repo-check" th:value="${repo.full_name}"
+                   th:disabled="${repo.permissions == null or !repo.permissions.admin}"
+                   th:title="${(repo.permissions == null or !repo.permissions.admin) ? #messages.msg('bulk.no_permission') : null}">
+
+            <a th:href="@{'/repos/' + ${repo.owner.login} + '/' + ${repo.name}}" class="repo-name" th:text="${repo.name}">Repo Name</a>
+
+            <div class="repo-desc" th:text="${repo.description != null ? repo.description : #messages.msg('repo.no_desc')}"></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <div class="badges">
+                    <span class="badge" th:text="${repo.private} ? #{repo.private} : #{repo.public}"></span>
+                    <span class="badge" th:if="${repo.fork}" th:text="#{bulk.fork}">Fork</span>
+                    <span class="badge" th:if="${repo.archived}" th:text="#{bulk.archived}">Archived</span>
+                </div>
+                <span style="font-size: 0.8em; color: var(--text-muted);" th:text="${repo.language != null ? repo.language : #messages.msg('repo.lang_not_specified')}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- رسالة في حال عدم وجود مستودعات -->
+    <div th:if="${repos.isEmpty()}" style="text-align: center; color: var(--text-muted); margin-top: 50px;">
+        <h3 th:text="#{home.no_repos}">ليس لديك أي مستودعات حتى الآن.</h3>
+        <p th:text="#{home.start_now}">اضغط على زر "مستودع جديد" للبدء!</p>
+    </div>
+</div>
+
+<!-- نافذة تأكيد العملية الجماعية -->
+<dialog id="bulkDialog">
+    <div class="dialog-body">
+        <h3 id="bulkTitle" style="margin: 0 0 8px;"></h3>
+        <p id="bulkText" style="margin: 0; color: var(--text-muted);"></p>
+        <ul id="bulkRepoList" class="dialog-list"></ul>
+
+        <div id="phraseBox" class="hidden" style="margin-top: 14px;">
+            <p id="phraseLabel" style="margin: 0 0 6px;"></p>
+            <input type="text" id="phraseInput" class="form-control" style="width: 100%;" autocomplete="off" spellcheck="false">
+        </div>
+
+        <ul id="bulkResults" class="dialog-list hidden"></ul>
+        <p id="bulkSummary" class="hidden" style="font-weight: bold; margin: 12px 0 0;"></p>
+
+        <div class="dialog-actions">
+            <button type="button" id="bulkCancel" class="btn btn-outline" th:text="#{repo.cancel}">Cancel</button>
+            <button type="button" id="bulkConfirm" class="btn btn-primary" th:text="#{bulk.confirm}">Confirm</button>
+            <button type="button" id="bulkClose" class="btn btn-primary hidden" th:text="#{bulk.close}">Close</button>
+        </div>
+    </div>
+</dialog>
+
+<script th:inline="javascript">
+    const $ = function (id) { return document.getElementById(id); };
+
+    const i18n = {
+        selectMode:    /*[[#{bulk.select_mode}]]*/ 'Select multiple',
+        exitSelect:    /*[[#{bulk.exit_select}]]*/ 'Cancel selection',
+        selectedCount: /*[[#{bulk.selected_count}]]*/ 'Selected: {0}',
+        tooMany:       /*[[#{bulk.too_many}]]*/ 'Max {0} repositories per operation.',
+        typePhrase:    /*[[#{bulk.type_phrase}]]*/ 'Type {0} to confirm:',
+        running:       /*[[#{bulk.running}]]*/ 'Working...',
+        summary:       /*[[#{bulk.summary}]]*/ '{0} succeeded, {1} failed',
+        requestFailed: /*[[#{bulk.request_failed}]]*/ 'Request failed.'
+    };
+
+    const actionInfo = {
+        'private': { title: /*[[#{bulk.private_title}]]*/ '', text: /*[[#{bulk.private_text}]]*/ '', phrase: '', max: 25 },
+        'public':  { title: /*[[#{bulk.public_title}]]*/ '',  text: /*[[#{bulk.public_text}]]*/ '',  phrase: 'PUBLIC', max: 25 },
+        'delete':  { title: /*[[#{bulk.delete_title}]]*/ '',  text: /*[[#{bulk.delete_text}]]*/ '',  phrase: 'DELETE', max: 10 }
+    };
+
+    function fmt(str) {
+        const args = Array.prototype.slice.call(arguments, 1);
+        return str.replace(/\{(\d+)\}/g, function (m, i) { return args[i] !== undefined ? args[i] : m; });
+    }
+
+    // ===== Theme =====
+    function updateAssets(theme) {
+        const favicon = $('dynamic-favicon');
+        const navbarLogo = $('navbar-logo');
+        const themeIcon = $('themeIcon');
+
+        if (theme === 'dark') {
+            if (favicon) favicon.href = /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1';
+            if (navbarLogo) navbarLogo.src = /*[[@{/favicon_dark.png?v=1}]]*/ '/favicon_dark.png?v=1';
+            if (themeIcon) themeIcon.innerText = '☀️';
+        } else {
+            if (favicon) favicon.href = /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+            if (navbarLogo) navbarLogo.src = /*[[@{/favicon_light.png?v=1}]]*/ '/favicon_light.png?v=1';
+            if (themeIcon) themeIcon.innerText = '🌙';
+        }
+    }
+
+    function toggleTheme() {
+        const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateAssets(newTheme);
+    }
+    updateAssets(document.documentElement.getAttribute('data-theme'));
+
+    // ===== Search / filter / selection =====
+    const cards = Array.from(document.querySelectorAll('.repo-card'));
+    const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
+    let selectMode = false;
+
+    function checkOf(card) { return card.querySelector('.repo-check'); }
+    function isVisible(card) { return !card.classList.contains('hidden'); }
+
+    // المحدد فعلاً = ظاهر + مفعّل + متعلّم
+    function selected() {
+        return cards.filter(isVisible)
+            .map(checkOf)
+            .filter(function (c) { return c.checked && !c.disabled; })
+            .map(function (c) { return c.value; });
+    }
+
+    function updateSelection() {
+        cards.forEach(function (card) { card.classList.toggle('selected', checkOf(card).checked); });
+
+        const n = selected().length;
+        if ($('selectedCount')) $('selectedCount').textContent = fmt(i18n.selectedCount, n);
+        actionButtons.forEach(function (b) { b.disabled = n === 0; });
+
+        const selectable = cards.filter(isVisible).map(checkOf).filter(function (c) { return !c.disabled; });
+        const checkedCount = selectable.filter(function (c) { return c.checked; }).length;
+        if ($('selectAll')) {
+            $('selectAll').checked = selectable.length > 0 && checkedCount === selectable.length;
+            $('selectAll').indeterminate = checkedCount > 0 && checkedCount < selectable.length;
+        }
+    }
+
+    function applyFilter() {
+        const q = $('searchInput').value.trim().toLowerCase();
+        const f = $('filterSelect').value;
+
+        cards.forEach(function (card) {
+            const isPrivate = card.dataset.private === 'true';
+            const isFork = card.dataset.fork === 'true';
+            let ok = !q || card.dataset.name.indexOf(q) !== -1;
+            if (f === 'public') ok = ok && !isPrivate;
+            if (f === 'private') ok = ok && isPrivate;
+            if (f === 'forks') ok = ok && isFork;
+            if (f === 'sources') ok = ok && !isFork;
+
+            card.classList.toggle('hidden', !ok);
+            if (!ok) checkOf(card).checked = false;       // حماية: المخفي مش ممكن يفضل متحدد
+        });
+        updateSelection();
+    }
+
+    function setSelectMode(on) {
+        selectMode = on;
+        $('pageContainer').classList.toggle('select-mode', on);
+        $('bulkBar').classList.toggle('hidden', !on);
+        $('selectModeBtn').textContent = on ? i18n.exitSelect : i18n.selectMode;
+        $('selectModeBtn').classList.toggle('active', on);
+        if (!on) cards.forEach(function (card) { checkOf(card).checked = false; });
+        updateSelection();
+    }
+
+    function showAlert(text) {
+        $('alertBox').textContent = text;
+        $('alertBox').classList.remove('hidden');
+        setTimeout(function () { $('alertBox').classList.add('hidden'); }, 6000);
+    }
+
+    if ($('searchInput')) {
+        $('searchInput').addEventListener('input', applyFilter);
+        $('filterSelect').addEventListener('change', applyFilter);
+        $('selectModeBtn').addEventListener('click', function () { setSelectMode(!selectMode); });
+
+        $('selectAll').addEventListener('change', function (e) {
+            cards.forEach(function (card) {
+                const c = checkOf(card);
+                if (isVisible(card) && !c.disabled) c.checked = e.target.checked;
+            });
+            updateSelection();
+        });
+
+        cards.forEach(function (card) {
+            const check = checkOf(card);
+            check.addEventListener('change', updateSelection);
+
+            // في وضع التحديد: الضغط على الكارت يحدده بدل ما يفتح الصفحة
+            card.addEventListener('click', function (e) {
+                if (!selectMode) return;
+                if (e.target === check) return;
+                e.preventDefault();
+                if (!check.disabled) {
+                    check.checked = !check.checked;
+                    updateSelection();
+                }
+            });
+        });
+
+        actionButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () { openBulk(btn.getAttribute('data-action')); });
+        });
+
+        updateSelection();
+    }
+
+    // ===== Bulk dialog =====
+    let current = null;
+    let running = false;
+    let anySuccess = false;
+
+    function openBulk(action) {
+        const repos = selected();
+        const info = actionInfo[action];
+        if (repos.length === 0) return;
+        if (repos.length > info.max) { showAlert(fmt(i18n.tooMany, info.max)); return; }
+
+        current = { action: action, repos: repos, phrase: info.phrase };
+
+        $('bulkTitle').textContent = info.title;
+        $('bulkTitle').style.color = action === 'delete' ? 'var(--btn-danger)' : '';
+        $('bulkText').textContent = info.text;
+
+        const list = $('bulkRepoList');
+        list.innerHTML = '';
+        list.classList.remove('hidden');
+        repos.forEach(function (name) {
+            const li = document.createElement('li');
+            li.textContent = name;
+            list.appendChild(li);
+        });
+
+        $('phraseBox').classList.toggle('hidden', !info.phrase);
+        $('phraseInput').value = '';
+        $('phraseInput').disabled = false;
+        if (info.phrase) {
+            const label = $('phraseLabel');
+            label.innerHTML = '';
+            const parts = fmt(i18n.typePhrase, '\u0001').split('\u0001');
+            label.appendChild(document.createTextNode(parts[0]));
+            const code = document.createElement('code');
+            code.className = 'phrase-code';
+            code.textContent = info.phrase;
+            label.appendChild(code);
+            label.appendChild(document.createTextNode(parts[1] || ''));
+        }
+
+        $('bulkConfirm').className = 'btn ' + (action === 'delete' ? 'btn-danger' : 'btn-primary');
+        $('bulkConfirm').disabled = !!info.phrase;
+        $('bulkConfirm').classList.remove('hidden');
+        $('bulkCancel').classList.remove('hidden');
+        $('bulkCancel').disabled = false;
+        $('bulkClose').classList.add('hidden');
+        $('bulkResults').classList.add('hidden');
+        $('bulkResults').innerHTML = '';
+        $('bulkSummary').classList.add('hidden');
+
+        $('bulkDialog').showModal();
+        if (info.phrase) $('phraseInput').focus();
+    }
+
+    $('phraseInput').addEventListener('input', function (e) {
+        $('bulkConfirm').disabled = !current || e.target.value !== current.phrase;
+    });
+    $('bulkCancel').addEventListener('click', function () { $('bulkDialog').close(); });
+    $('bulkDialog').addEventListener('cancel', function (e) { if (running) e.preventDefault(); });
+    $('bulkClose').addEventListener('click', function () {
+        $('bulkDialog').close();
+        if (anySuccess) window.location.reload();
+    });
+
+    $('bulkConfirm').addEventListener('click', async function () {
+        if (!current || running) return;
+        running = true;
+        anySuccess = false;
+
+        $('bulkConfirm').disabled = true;
+        $('bulkCancel').disabled = true;
+        $('phraseInput').disabled = true;
+        $('bulkSummary').textContent = i18n.running;
+        $('bulkSummary').classList.remove('hidden');
+
+        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+        const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+        headers[csrfHeader] = csrfToken;
+
+        try {
+            const res = await fetch('/repos/bulk/action', {
+                method: 'POST',
+                headers: headers,
+                credentials: 'same-origin',
+                body: JSON.stringify({ action: current.action, repos: current.repos, confirmation: $('phraseInput').value })
+            });
+            const data = await res.json().catch(function () { return {}; });
+
+            if (!res.ok) {
+                $('bulkSummary').textContent = data.error || i18n.requestFailed;
+                $('bulkConfirm').disabled = false;
+                $('bulkCancel').disabled = false;
+                $('phraseInput').disabled = false;
+                return;
+            }
+
+            const results = data.results || [];
+            const list = $('bulkResults');
+            list.innerHTML = '';
+            let ok = 0, failed = 0;
+            results.forEach(function (r) {
+                const li = document.createElement('li');
+                li.className = r.success ? 'ok' : 'fail';
+                li.textContent = (r.success ? '✅ ' : '❌ ') + r.repo + ' — ' + r.message;
+                list.appendChild(li);
+                if (r.success) ok++; else failed++;
+            });
+            anySuccess = ok > 0;
+
+            $('bulkRepoList').classList.add('hidden');
+            $('phraseBox').classList.add('hidden');
+            list.classList.remove('hidden');
+            $('bulkSummary').textContent = fmt(i18n.summary, ok, failed);
+            $('bulkConfirm').classList.add('hidden');
+            $('bulkCancel').classList.add('hidden');
+            $('bulkClose').classList.remove('hidden');
+        } catch (err) {
+            $('bulkSummary').textContent = i18n.requestFailed;
+            $('bulkConfirm').disabled = false;
+            $('bulkCancel').disabled = false;
+            $('phraseInput').disabled = false;
+        } finally {
+            running = false;
+        }
+    });
+</script>
+    <script th:src="@{/js/toast.js}"></script>
+</body>
+</html>
